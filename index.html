@@ -226,6 +226,33 @@ a.btn{text-decoration:none}
 .da{color:var(--muted);font-size:.86rem}
 .dm{color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
 .dact{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+/* ---------- Listen mode ---------- */
+.reader.listening .stage,.reader.listening #hint,.reader.listening #ctx,.reader.listening .wpm{display:none}
+.reader:not(.listening) #listen,.reader:not(.listening) .lsrow{display:none}
+.reader.listening .rmain{justify-content:stretch}
+#rListen[aria-pressed="true"]{color:var(--accent)}
+.listen{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+#lsText{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;font-family:var(--serif);font-size:1.22rem;line-height:1.7;color:var(--muted);padding:12px 2px}
+#lsText mark{background:var(--accent-soft);color:var(--ink);border-radius:4px;box-shadow:0 0 0 3px var(--accent-soft)}
+#lsInfo{color:var(--muted);font-size:.84rem;text-align:center;min-height:1.3em;margin:0}
+.lsrow{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap}
+.lsrow output{font-weight:700;font-variant-numeric:tabular-nums;min-width:3.4ch;text-align:center}
+.lsrow .btn{max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
+.lsh{font-size:.74rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin:6px 0 0;font-weight:700}
+.lsh .muted{text-transform:none;letter-spacing:0;font-weight:400;font-size:.8rem}
+.vlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.vrow{display:flex;align-items:center;border-top:1px solid var(--line)}
+.vrow:first-child{border-top:0}
+.vpick{appearance:none;border:0;background:none;flex:1;min-width:0;text-align:left;padding:10px 12px;display:flex;flex-direction:column;gap:1px;cursor:pointer}
+.vn{font-weight:700}
+.vm{color:var(--muted);font-size:.8rem}
+.vrow.sel .vn{color:var(--accent)}
+.vrow.sel .vn::after{content:"  ✓"}
+.azset{border:1px solid var(--line);border-radius:12px;padding:12px}
+.azset summary{font-weight:700;cursor:pointer}
+.azset[open]{display:flex;flex-direction:column;gap:10px}
+#lsSleep button{padding:8px 9px}
+.panel .body>*{flex-shrink:0}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -286,6 +313,7 @@ a.btn{text-decoration:none}
     <div class="rtitle"><div class="a" id="rTitle"></div><div class="b" id="rChap"></div></div>
     <button class="icon-btn" id="rToc" type="button" aria-label="Go to chapter, page or position"><span data-icon="list"></span></button>
     <button class="icon-btn" id="rText" type="button" aria-label="Text view"><span data-icon="text"></span></button>
+    <button class="icon-btn" id="rListen" type="button" aria-label="Listen" aria-pressed="false"><span data-icon="headphones"></span></button>
     <button class="icon-btn" id="rSet" type="button" aria-label="Reading settings"><span data-icon="sliders"></span></button>
   </div>
   <div class="rmain">
@@ -296,6 +324,7 @@ a.btn{text-decoration:none}
     </div>
     <div class="hint" id="hint"><span id="hintText">Tap the word to start</span><button class="linkbtn" id="gotoBtn" type="button">Go to chapter</button></div>
     <div class="context" id="ctx"></div>
+    <div class="listen" id="listen"><div id="lsText"></div><p id="lsInfo"></p></div>
   </div>
   <div class="rfoot">
     <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Position in book">
@@ -309,6 +338,11 @@ a.btn{text-decoration:none}
       <button class="icon-btn" id="slower" type="button" aria-label="Slower">−</button>
       <output id="wpmOut">350</output><span class="u">wpm</span>
       <button class="icon-btn" id="faster" type="button" aria-label="Faster">+</button>
+    </div>
+    <div class="lsrow">
+      <button class="icon-btn" id="lsSlower" type="button" aria-label="Slower">−</button><output id="lsRateOut">1×</output><button class="icon-btn" id="lsFaster" type="button" aria-label="Faster">+</button>
+      <button class="btn sm" id="lsVoiceBtn" type="button">Choose voice</button>
+      <button class="btn sm" id="lsSleepBtn" type="button">Sleep timer</button>
     </div>
   </div>
 </section>
@@ -363,6 +397,13 @@ a.btn{text-decoration:none}
   </div>
 </div>
 
+<div class="sheet" id="sh-listen" hidden>
+  <div class="panel tall" role="dialog" aria-label="Listening">
+    <header><h2>Listening</h2><button class="icon-btn" type="button" data-close aria-label="Close"><span data-icon="x"></span></button></header>
+    <div class="body" id="lsBody"></div>
+  </div>
+</div>
+
 <div class="sheet" id="sh-book" hidden>
   <div class="panel" role="dialog" aria-label="Book options">
     <header><h2>Book</h2><button class="icon-btn" type="button" data-close aria-label="Close"><span data-icon="x"></span></button></header>
@@ -413,27 +454,30 @@ const I = {
   x: sv('<path d="M6 6l12 12M18 6L6 18"/>'),
   plus: sv('<path d="M12 5v14M5 12h14"/>', 20),
   book: sv('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16"/>', 24),
+  headphones: sv('<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.5" height="7" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="7" rx="1.5"/>'),
+  play20: sv('<path d="M8 5.6v12.8a1 1 0 0 0 1.53.85l10.1-6.4a1 1 0 0 0 0-1.7L9.53 4.75A1 1 0 0 0 8 5.6z"/>', 18, true),
   compass: sv('<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>', 24),
   grid: sv('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>', 24)
 };
 
 /* ---------- Settings ---------- */
-const DEF = { wpm: 350, chunk: 1, pause: 2, fs: 44, font: 'sans', pivot: true, guide: true, ramp: true, skin: 'auto' };
+const DEF = { wpm: 350, chunk: 1, pause: 2, fs: 44, font: 'sans', pivot: true, guide: true, ramp: true, skin: 'auto', lsRate: 1, voice_en: '', voice_hr: '', azKey: '', azRegion: 'westeurope' };
 const S = Object.assign({}, DEF, LS.get('settings', {}));
 const saveSettings = () => LS.set('settings', S);
 
 /* ---------- Storage (IndexedDB, with in-memory fallback) ---------- */
 const DB = (() => {
   let p = null;
-  const mem = { meta: new Map(), text: new Map() };
+  const mem = { meta: new Map(), text: new Map(), audio: new Map() };
   function open() {
     if (!p) p = new Promise(res => {
       try {
-        const r = indexedDB.open('pivot-reader', 1);
+        const r = indexedDB.open('pivot-reader', 2);
         r.onupgradeneeded = () => {
           const d = r.result;
           if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'id' });
           if (!d.objectStoreNames.contains('text')) d.createObjectStore('text', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('audio')) d.createObjectStore('audio', { keyPath: 'id' });
         };
         r.onsuccess = () => res(r.result);
         r.onerror = () => res(null);
@@ -464,7 +508,16 @@ const DB = (() => {
       for (const [k, v] of mem[store]) m.set(k, v);
       return [...m.values()];
     },
-    async del(store, id) { mem[store].delete(id); try { await run(store, 'readwrite', s => s.delete(id)); } catch (e) {} }
+    async del(store, id) { mem[store].delete(id); try { await run(store, 'readwrite', s => s.delete(id)); } catch (e) {} },
+    async has(store, id) { if (mem[store].has(id)) return true; try { return (await run(store, 'readonly', s => s.count(id))) > 0; } catch (e) { return false; } },
+    async keysPrefix(store, p) {
+      const m = [...mem[store].keys()].filter(k => k.startsWith(p));
+      try { return [...new Set([...((await run(store, 'readonly', s => s.getAllKeys(IDBKeyRange.bound(p, p + '\uffff')))) || []), ...m])]; } catch (e) { return m; }
+    },
+    async delPrefix(store, p) {
+      for (const k of [...mem[store].keys()]) if (k.startsWith(p)) mem[store].delete(k);
+      try { await run(store, 'readwrite', s => s.delete(IDBKeyRange.bound(p, p + '\uffff'))); } catch (e) {}
+    }
   };
 })();
 
@@ -938,8 +991,8 @@ const SAMPLE = {
 
 /* ---------- Library ---------- */
 let docs = [];
-function fmtMin(words) {
-  const m = words / S.wpm * 1.15;
+function fmtMin(words, wpm) {
+  const m = wpm ? words / wpm : words / S.wpm * 1.15;
   if (m < 1) return 'under 1 min';
   if (m < 60) return Math.round(m) + ' min';
   const h = Math.floor(m / 60), r = Math.round(m % 60);
@@ -995,7 +1048,7 @@ $('#groups').addEventListener('click', async e => {
       menu.innerHTML = `<span class="warn">Delete “${esc(d.title)}” from this device?</span><button class="btn sm danger" type="button" data-act="del2">Delete</button><button class="btn sm" type="button" data-act="cancel">Keep it</button>`;
       break;
     case 'del2':
-      await DB.del('meta', id); await DB.del('text', id);
+      await DB.del('meta', id); await DB.del('text', id); DB.delPrefix('audio', id + '|');
       docs = docs.filter(x => x.id !== id); renderLibrary(); break;
     case 'cancel': menu.hidden = true; break;
   }
@@ -1112,7 +1165,7 @@ $('#bkBody').addEventListener('click', async e => {
     case 'del': renderBook(true); break;
     case 'keep': renderBook(); break;
     case 'del2':
-      await DB.del('meta', d.id); await DB.del('text', d.id);
+      await DB.del('meta', d.id); await DB.del('text', d.id); DB.delPrefix('audio', d.id + '|');
       docs = docs.filter(x => x.id !== d.id); closeSheet(); renderLibrary(); break;
   }
 });
@@ -1394,7 +1447,7 @@ function updateProgress() {
   let lab = (n > 1 ? Math.floor(R.pos / (n - 1) * 100) : 0) + '%';
   if (R.doc.pages) { const k = bsearch(R.doc.pages, R.pos, 'w'); if (k >= 0) lab = 'Page ' + R.doc.pages[k].n + ' · ' + lab; }
   $('#rPct').textContent = lab;
-  $('#rLeft').textContent = fmtMin(n - R.pos) + ' left';
+  $('#rLeft').textContent = fmtMin(n - R.pos, L.on ? 155 * S.lsRate : 0) + ' left';
   const c = chapterIdx(R.pos);
   $('#rChap').textContent = c >= 0 ? R.doc.chapters[c].title : (R.doc.author || R.doc.kind || '');
 }
@@ -1427,9 +1480,10 @@ async function lockOn() { try { if ('wakeLock' in navigator) wl = await navigato
 function lockOff() { try { if (wl) wl.release(); } catch (e) {} wl = null; }
 
 function setPlayIcon() {
+  const on = L.on ? L.playing : R.playing;
   const b = $('#play');
-  b.innerHTML = R.playing ? I.pause : I.play;
-  b.setAttribute('aria-label', R.playing ? 'Pause' : 'Play');
+  b.innerHTML = on ? I.pause : I.play;
+  b.setAttribute('aria-label', on ? 'Pause' : 'Play');
 }
 function tick() {
   const n = show(R.pos);
@@ -1469,9 +1523,10 @@ function finish() {
   ctx.hidden = true;
   flushPos();
 }
-const toggle = () => R.playing ? pause() : play();
+const toggle = () => L.on ? (L.playing ? lsPause() : lsPlay()) : (R.playing ? pause() : play());
 function setPos(i) {
   i = clamp(i, 0, R.words.length - 1);
+  if (L.on) { if (L.playing) lsPause(); R.pos = i; lsShow(true); flushPos(); return; }
   if (R.playing) { clearTimeout(R.timer); R.pos = i; R.ramp = 0; touchPos(); tick(); }
   else { R.pos = i; show(i); renderContext(); ctx.hidden = false; hint.hidden = false; hintText.textContent = 'Paused · tap to continue'; flushPos(); }
 }
@@ -1483,6 +1538,7 @@ async function openDoc(id) {
   const tk = tokenize(t.text);
   if (!tk.words.length) return;
   Object.assign(R, { doc: meta, words: tk.words, flags: tk.flags, paraStarts: tk.paraStarts, playing: false });
+  Object.assign(L, { chunks: null, cs: null, shownSent: -1, k: -1, chars: 0 });
   R.pos = clamp(meta.pos || 0, 0, R.words.length - 1);
   if (meta.finished && R.pos >= R.words.length - 1) R.pos = 0;
   computeSections();
@@ -1502,6 +1558,7 @@ async function openDoc(id) {
 }
 async function closeReader() {
   if (R.playing) pause();
+  if (L.on || L.playing) { lsPause(); L.gen.stop = true; L.on = false; reader.classList.remove('listening'); $('#rListen').setAttribute('aria-pressed', 'false'); }
   await flushPos();
   reader.hidden = true;
   document.body.classList.remove('reading');
@@ -1530,14 +1587,444 @@ stage.addEventListener('pointercancel', () => { g = null; });
 
 ctx.addEventListener('click', e => { const s = e.target.closest('[data-i]'); if (s) setPos(+s.dataset.i); });
 $('#play').addEventListener('click', toggle);
-$('#prevS').addEventListener('click', () => { let s = sentenceStart(R.pos); if (R.pos - s < 3 && s > 0) s = sentenceStart(s - 1); setPos(s); });
-$('#nextS').addEventListener('click', () => { let j = R.pos; while (j < R.words.length - 1 && !(R.flags[j] & 3)) j++; setPos(j + 1); });
-scrub.addEventListener('input', () => { if (R.playing) pause(); R.pos = +scrub.value; show(R.pos); renderContext(); });
+$('#prevS').addEventListener('click', () => { if (L.on) { lsSkip(-1); return; } let s = sentenceStart(R.pos); if (R.pos - s < 3 && s > 0) s = sentenceStart(s - 1); setPos(s); });
+$('#nextS').addEventListener('click', () => { if (L.on) { lsSkip(1); return; } let j = R.pos; while (j < R.words.length - 1 && !(R.flags[j] & 3)) j++; setPos(j + 1); });
+scrub.addEventListener('input', () => { if (L.on) { if (L.playing) lsPause(); R.pos = +scrub.value; lsShow(true); return; } if (R.playing) pause(); R.pos = +scrub.value; show(R.pos); renderContext(); });
 scrub.addEventListener('change', () => flushPos());
 function bumpWpm(d) { S.wpm = clamp(S.wpm + d, 100, 1200); commit(); }
 $('#slower').addEventListener('click', () => bumpWpm(-10));
 $('#faster').addEventListener('click', () => bumpWpm(10));
 $('#rBack').addEventListener('click', closeReader);
+
+/* ---------- Listen (audiobook) ---------- */
+const L = { on: false, playing: false, voice: null, chunks: null, cs: null, k: -1, tok: 0, audio: null, url: null, seekWord: null, utter: null, shownSent: -1, chars: 0, gen: { running: false, stop: false, vid: '' }, sleepV: 'off', sleepAt: 0, sleepCh: null, unlocked: false };
+const AZ = [
+  { id: 'az:en-US-AvaNeural', name: 'Ava', lang: 'en', g: 'F', note: 'American' },
+  { id: 'az:en-US-AndrewNeural', name: 'Andrew', lang: 'en', g: 'M', note: 'American' },
+  { id: 'az:en-US-EmmaNeural', name: 'Emma', lang: 'en', g: 'F', note: 'American' },
+  { id: 'az:en-US-BrianNeural', name: 'Brian', lang: 'en', g: 'M', note: 'American' },
+  { id: 'az:en-GB-SoniaNeural', name: 'Sonia', lang: 'en', g: 'F', note: 'British' },
+  { id: 'az:en-GB-RyanNeural', name: 'Ryan', lang: 'en', g: 'M', note: 'British' },
+  { id: 'az:hr-HR-GabrijelaNeural', name: 'Gabrijela', lang: 'hr', g: 'F', note: 'Croatian' },
+  { id: 'az:hr-HR-SreckoNeural', name: 'Srećko', lang: 'hr', g: 'M', note: 'Croatian' }
+];
+const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Fred|Junior|Ralph|Kathy|Eddy|Flo|Grandma|Grandpa|Reed|Rocko|Sandy|Shelley)\b/i;
+const GENDER = { samantha: 'F', karen: 'F', moira: 'F', tessa: 'F', martha: 'F', catherine: 'F', nicky: 'F', ava: 'F', allison: 'F', susan: 'F', serena: 'F', zoe: 'F', noelle: 'F', joelle: 'F', victoria: 'F', kate: 'F', fiona: 'F', veena: 'F', stephanie: 'F', lana: 'F', daniel: 'M', rishi: 'M', arthur: 'M', gordon: 'M', aaron: 'M', tom: 'M', oliver: 'M', jamie: 'M', evan: 'M', nathan: 'M', alex: 'M', lee: 'M', malcolm: 'M' };
+const VSAMPLE = { en: 'It was a bright, quiet morning, and the old bookshop smelled of paper and coffee.', hr: 'Bilo je vedro i tiho jutro, a stara knjižara mirisala je na papir i kavu.' };
+const SILENT = (() => {
+  const n = 800, b = new Uint8Array(44 + n), dv = new DataView(b.buffer), w = (o, t) => { for (let i = 0; i < t.length; i++) b[o + i] = t.charCodeAt(i); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, 8000, true); dv.setUint32(28, 8000, true); dv.setUint16(32, 1, true); dv.setUint16(34, 8, true); w(36, 'data'); dv.setUint32(40, n, true); b.fill(128, 44);
+  let t = ''; b.forEach(x => { t += String.fromCharCode(x); }); return 'data:audio/wav;base64,' + btoa(t);
+})();
+const sleepMs = ms => new Promise(r => setTimeout(r, ms));
+const escXml = t => t.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
+
+function guessLang(words) {
+  const t = words.slice(0, 4000).join(' ').toLowerCase();
+  const hr = (t.match(/[čćšžđ]/g) || []).length + (t.match(/\b(je|se|da|na|su|što|nije|bio|bila|kao|ali)\b/g) || []).length;
+  const en = (t.match(/\b(the|and|of|to|was|is|that|he|she|it|with)\b/g) || []).length;
+  return hr > en ? 'hr' : 'en';
+}
+function docLang() { if (!R.doc.lang) R.doc.lang = guessLang(R.words); return R.doc.lang; }
+function sysVoices(lang) {
+  if (!('speechSynthesis' in window)) return [];
+  return speechSynthesis.getVoices().filter(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith(lang) && !NOVELTY.test(v.name)).map(v => {
+    const first = v.name.split(/[\s(]/)[0].toLowerCase();
+    const g = GENDER[first] || (/female/i.test(v.name) ? 'F' : /\bmale/i.test(v.name) ? 'M' : '');
+    const q = /premium/i.test(v.name) ? 3 : /enhanced/i.test(v.name) ? 2 : 1;
+    return { id: 'sys:' + v.voiceURI, name: v.name.replace(/\s*\((Enhanced|Premium)\)\s*/i, ''), lang, g, note: v.lang, q, v, engine: 'sys' };
+  }).sort((a, b) => b.q - a.q || a.name.localeCompare(b.name));
+}
+function voicesFor(lang) { return [...(S.azKey ? AZ.filter(v => v.lang === lang).map(v => Object.assign({ engine: 'az' }, v)) : []), ...sysVoices(lang)]; }
+function curVoice() { if (!R.doc) return null; const lang = docLang(), all = voicesFor(lang); return all.find(v => v.id === S['voice_' + lang]) || all[0] || null; }
+
+function ensureChunks() {
+  if (L.chunks) return;
+  const out = [], n = R.words.length, ch = new Set(R.doc.chapters.map(c => c.w));
+  let s = 0, len = 0;
+  for (let i = 0; i < n; i++) {
+    len += R.words[i].length + 1;
+    if (i === n - 1 || ch.has(i + 1) || (len >= 1800 && (R.flags[i] & 3)) || len >= 3000) { out.push([s, i + 1]); s = i + 1; len = 0; }
+  }
+  L.chunks = out; L.cs = out.map(c => c[0]);
+}
+const chunkAtWord = i => Math.max(0, bsearch(L.cs, i));
+function bookChars() { if (!L.chars) L.chars = R.words.reduce((t, w) => t + w.length + 1, 0); return L.chars; }
+
+function lsInfo(t) { const el = $('#lsInfo'); if (el) el.textContent = t; }
+function lsInfoVoice() {
+  const v = curVoice();
+  $('#lsVoiceBtn').textContent = v ? v.name : 'Choose voice';
+  $('#lsSleepBtn').textContent = L.sleepV === 'off' ? 'Sleep timer' : L.sleepV === 'ch' ? 'Sleep: chapter' : `Sleep: ${L.sleepV} min`;
+  $('#lsRateOut').textContent = (+S.lsRate.toFixed(2)) + '×';
+  if (R.doc) updateProgress();
+  lsInfo(v ? (v.engine === 'az' ? `${v.name} · natural voice` : `${v.name} · iPhone voice · keep the screen on`) : 'Choose a voice to start listening');
+}
+function lsShow(force) {
+  updateProgress();
+  const ss = sentenceStart(R.pos);
+  if (!force && ss === L.shownSent) return;
+  L.shownSent = ss;
+  let se = ss; while (se < R.words.length - 1 && !(R.flags[se] & 3)) se++;
+  const k = paraIdx(R.pos), ps = R.paraStarts[k] || 0, pe = k + 1 < R.paraStarts.length ? R.paraStarts[k + 1] : R.words.length;
+  const a = Math.max(ps, ss - 120), b = Math.min(pe, se + 121);
+  let h = a > ps ? '… ' : '';
+  for (let j = a; j < b; j++) { if (j === ss) h += '<mark>'; h += esc(R.words[j]); h += j === se ? '</mark> ' : ' '; }
+  if (b < pe) h += '…';
+  const box = $('#lsText');
+  box.innerHTML = h;
+  const m = box.querySelector('mark');
+  if (m) box.scrollTop = Math.max(0, m.offsetTop - box.offsetTop - box.clientHeight / 3);
+}
+function setSleep(v) {
+  L.sleepV = v;
+  L.sleepAt = (v === 'off' || v === 'ch') ? 0 : Date.now() + (+v) * 60000;
+  L.sleepCh = v === 'ch' ? chapterIdx(R.pos) : null;
+  lsInfoVoice();
+}
+function sleepDue() {
+  const due = (L.sleepAt && Date.now() >= L.sleepAt) || (L.sleepCh !== null && chapterIdx(R.pos) !== L.sleepCh);
+  if (due) { L.sleepAt = 0; L.sleepCh = null; L.sleepV = 'off'; }
+  return due;
+}
+function mediaMeta() {
+  if (!('mediaSession' in navigator) || !R.doc) return;
+  try {
+    const c = chapterIdx(R.pos);
+    navigator.mediaSession.metadata = new MediaMetadata({ title: c >= 0 ? R.doc.chapters[c].title : R.doc.title, artist: R.doc.author || '', album: R.doc.title, artwork: [R.doc.cover ? { src: R.doc.cover, sizes: '512x512', type: 'image/jpeg' } : { src: 'icon-512.png', sizes: '512x512', type: 'image/png' }] });
+  } catch (e) {}
+}
+function audioEl() {
+  if (L.audio) return L.audio;
+  const a = new Audio();
+  a.preload = 'auto';
+  a.addEventListener('ended', azEnded);
+  a.addEventListener('timeupdate', azTime);
+  a.addEventListener('loadedmetadata', () => {
+    if (L.k >= 0 && L.seekWord !== null && L.chunks) {
+      const [s, e] = L.chunks[L.k];
+      if (L.seekWord > s && isFinite(a.duration)) a.currentTime = (L.seekWord - s) / (e - s) * a.duration;
+    }
+    L.seekWord = null;
+  });
+  a.addEventListener('error', () => { if (L.playing && a.src !== SILENT && L.k >= 0) { lsPause(); setStatus('This part of the audio couldn’t be played. Press play to try again.', null, true); } });
+  return (L.audio = a);
+}
+function unlockAudio() {
+  const a = audioEl();
+  if (L.unlocked) return;
+  try { a.src = SILENT; const p = a.play(); if (p) p.then(() => { L.unlocked = true; if (a.src === SILENT) a.pause(); }).catch(() => {}); } catch (e) {}
+}
+
+let azChain = Promise.resolve(), azLast = 0;
+function azureSynth(text, v) {
+  const run = azChain.then(async () => {
+    const name = v.id.slice(3);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const wait = azLast + 3200 - Date.now();
+      if (wait > 0) await sleepMs(wait);
+      azLast = Date.now();
+      let r;
+      try {
+        r = await fetch(`https://${encodeURIComponent(S.azRegion)}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+          method: 'POST',
+          headers: { 'Ocp-Apim-Subscription-Key': S.azKey, 'Content-Type': 'application/ssml+xml', 'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3' },
+          body: `<speak version="1.0" xml:lang="${name.slice(0, 5)}"><voice name="${name}">${escXml(text)}</voice></speak>`
+        });
+      } catch (e) { throw new Error(navigator.onLine === false ? 'offline' : 'network'); }
+      if (r.ok) { const b = await r.blob(); if (b.size < 100) throw new Error('empty'); return b; }
+      if (r.status === 401 || r.status === 403) throw new Error('key');
+      if (r.status === 429) { await sleepMs(10000); continue; }
+      throw new Error('error ' + r.status);
+    }
+    throw new Error('rate');
+  });
+  azChain = run.catch(() => {});
+  return run;
+}
+function azError(e) {
+  const m = String((e && e.message) || e);
+  setStatus(m === 'key' ? 'Azure didn’t accept the key or region. Check them in Listening settings.'
+    : m === 'offline' ? 'This part isn’t saved for offline listening yet. Connect to the internet, or save the whole book first.'
+    : m === 'rate' ? 'Azure is busy, or this month’s free allowance is used up. Try again later.'
+    : m === 'network' ? 'Couldn’t reach Azure. Check your connection and the region name.'
+    : 'Azure couldn’t create the audio (' + m + ').', null, true);
+}
+const azPending = new Map();
+function azMake(v, k) {
+  const doc = R.doc, key = `${doc.id}|${v.id}|${k}`;
+  if (azPending.has(key)) return azPending.get(key);
+  const [s, e] = L.chunks[k];
+  const p = azureSynth(R.words.slice(s, e).join(' '), v).then(async blob => {
+    await DB.put('audio', { id: key, blob, bytes: blob.size });
+    doc.aud = doc.aud || {};
+    const a = doc.aud[v.id] || (doc.aud[v.id] = { bytes: 0 });
+    a.bytes += blob.size;
+    if (R.doc === doc) touchPos(); else DB.put('meta', doc);
+    return blob;
+  });
+  azPending.set(key, p);
+  p.then(() => azPending.delete(key), () => azPending.delete(key));
+  return p;
+}
+async function azGet(v, k) { const rec = await DB.get('audio', `${R.doc.id}|${v.id}|${k}`); return rec && rec.blob ? rec.blob : azMake(v, k); }
+let prefetching = false;
+async function azPrefetch(k) {
+  if (prefetching) return;
+  prefetching = true;
+  try {
+    for (let j = k + 1; j <= Math.min(k + 3, L.chunks.length - 1); j++) {
+      if (!L.playing || !L.voice || L.voice.engine !== 'az') break;
+      if (!(await DB.has('audio', `${R.doc.id}|${L.voice.id}|${j}`))) await azMake(L.voice, j);
+    }
+  } catch (e) {} finally { prefetching = false; }
+}
+async function azPlayFrom(i) {
+  ensureChunks();
+  const k = chunkAtWord(i), tok = ++L.tok, v = L.voice;
+  lsInfo('Preparing audio…');
+  let blob;
+  try { blob = await azGet(v, k); }
+  catch (e) { if (tok !== L.tok) return; lsPause(); azError(e); return; }
+  if (tok !== L.tok || !L.playing) return;
+  const a = audioEl();
+  if (L.url) URL.revokeObjectURL(L.url);
+  L.url = URL.createObjectURL(blob); L.k = k; L.seekWord = i;
+  a.src = L.url;
+  try { a.preservesPitch = true; } catch (e) {}
+  a.playbackRate = S.lsRate;
+  try { await a.play(); }
+  catch (e) { if (tok !== L.tok) return; lsPause(); setStatus('Press play to start listening.', null, true); return; }
+  a.playbackRate = S.lsRate;
+  lsInfoVoice();
+  azPrefetch(k);
+}
+function azEnded() {
+  if (!L.playing || L.k < 0 || !L.voice || L.voice.engine !== 'az') return;
+  const n = L.k + 1;
+  if (n >= L.chunks.length) { lsFinished(); return; }
+  R.pos = L.chunks[n][0]; touchPos(); lsShow();
+  if (sleepDue()) { lsPause(); return; }
+  mediaMeta();
+  azPlayFrom(R.pos);
+}
+function azTime() {
+  const a = L.audio;
+  if (!L.playing || L.k < 0 || !a || !a.duration || !isFinite(a.duration) || L.seekWord !== null || a.src === SILENT) return;
+  const [s, e] = L.chunks[L.k];
+  const w = Math.min(e - 1, s + Math.floor(a.currentTime / a.duration * (e - s)));
+  if (w !== R.pos) { R.pos = w; touchPos(); lsShow(); }
+  if (sleepDue()) lsPause();
+}
+function sysSpeakFrom(i) {
+  L.utter = null;
+  try { speechSynthesis.cancel(); } catch (e) {}
+  if (!L.playing) return;
+  if (i >= R.words.length) { lsFinished(); return; }
+  let e = i, chars = 0;
+  while (e < R.words.length) {
+    chars += R.words[e].length + 1; e++;
+    if (((R.flags[e - 1] & 3) && chars > 60) || ((R.flags[e - 1] & 4) && chars > 400) || chars > 600) break;
+  }
+  const offs = []; let t = '';
+  for (let j = i; j < e; j++) { offs.push(t.length); t += R.words[j] + ' '; }
+  const u = new SpeechSynthesisUtterance(t.trim());
+  u.voice = L.voice.v; u.lang = L.voice.v.lang; u.rate = S.lsRate;
+  u.onboundary = ev => { if (L.utter !== u || (ev.name && ev.name !== 'word')) return; const k = bsearch(offs, ev.charIndex); if (k >= 0 && i + k !== R.pos) { R.pos = i + k; lsShow(); } };
+  u.onend = () => {
+    if (L.utter !== u || !L.playing) return;
+    R.pos = Math.min(e, R.words.length - 1); touchPos();
+    if (e >= R.words.length) { lsFinished(); return; }
+    if (sleepDue()) { lsPause(); return; }
+    sysSpeakFrom(e);
+  };
+  u.onerror = ev => { if (L.utter !== u || ev.error === 'interrupted' || ev.error === 'canceled') return; lsPause(); setStatus('The voice stopped. Press play to continue.', null, true); };
+  L.utter = u; R.pos = i; lsShow();
+  speechSynthesis.speak(u);
+}
+function lsPlay() {
+  if (!R.doc || L.playing) return;
+  const v = curVoice();
+  if (!v) { openListen(); return; }
+  if (R.pos >= R.words.length - 1) R.pos = 0;
+  L.voice = v; L.playing = true;
+  setPlayIcon(); mediaMeta();
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+  if (v.engine === 'sys') { lockOn(); lsInfoVoice(); sysSpeakFrom(R.pos); }
+  else { unlockAudio(); azPlayFrom(R.pos); }
+}
+function lsPause() {
+  L.tok++;
+  const was = L.playing;
+  L.playing = false;
+  if (L.audio && !L.audio.paused) L.audio.pause();
+  L.utter = null;
+  try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) {}
+  setPlayIcon();
+  if (!L.gen.running) lockOff();
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+  if (was && R.doc) { lsInfoVoice(); flushPos(); lsShow(true); }
+}
+function lsFinished() {
+  lsPause();
+  R.doc.finished = true; R.pos = R.words.length - 1; flushPos();
+  lsInfo('Finished. Press play to listen again from the start.');
+}
+function lsSkip(d) {
+  let w;
+  if (d < 0) { w = sentenceStart(R.pos); if (R.pos - w < 3 && w > 0) w = sentenceStart(w - 1); }
+  else { let j = R.pos; while (j < R.words.length - 1 && !(R.flags[j] & 3)) j++; w = Math.min(j + 1, R.words.length - 1); }
+  R.pos = w; touchPos(); lsShow(true);
+  if (!L.playing) { flushPos(); return; }
+  if (L.voice.engine === 'sys') { sysSpeakFrom(w); return; }
+  ensureChunks();
+  const k = chunkAtWord(w);
+  if (k === L.k && L.audio && isFinite(L.audio.duration) && L.audio.duration) { const [s, e] = L.chunks[k]; L.audio.currentTime = (w - s) / (e - s) * L.audio.duration; }
+  else azPlayFrom(w);
+}
+function setListen(on) {
+  if (!R.doc || on === L.on) return;
+  if (on && R.playing) pause();
+  if (!on) lsPause();
+  L.on = on;
+  reader.classList.toggle('listening', on);
+  $('#rListen').setAttribute('aria-pressed', String(on));
+  setPlayIcon();
+  if (on) { lsShow(true); lsInfoVoice(); if (!curVoice()) openListen(); }
+  else { show(R.pos); renderContext(); ctx.hidden = false; hint.hidden = false; }
+}
+function setRate(r) {
+  S.lsRate = Math.round(clamp(r, 0.75, 2) * 100) / 100;
+  saveSettings();
+  if (L.audio && L.audio.src !== SILENT) L.audio.playbackRate = S.lsRate;
+  const o = $('#lsRateO'); if (o) o.textContent = S.lsRate.toFixed(2) + '×';
+  lsInfoVoice();
+}
+async function azSaveAll() {
+  const v = curVoice();
+  if (!v || v.engine !== 'az' || L.gen.running) return;
+  ensureChunks();
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  const doc = R.doc;
+  L.gen = { running: true, stop: false, vid: v.id };
+  lockOn(); renderListenSheet();
+  let err = null;
+  for (let k = 0; k < L.chunks.length; k++) {
+    if (L.gen.stop || R.doc !== doc) break;
+    if (await DB.has('audio', `${doc.id}|${v.id}|${k}`)) continue;
+    try { await azMake(v, k); } catch (e) { err = e; break; }
+    updSaved();
+  }
+  const stopped = L.gen.stop;
+  L.gen.running = false;
+  if (!(L.playing && L.voice && L.voice.engine === 'sys')) lockOff();
+  if (err) azError(err); else if (!stopped && R.doc === doc) setStatus('The whole book is saved for offline listening.', null);
+  if (!$('#sh-listen').hidden) renderListenSheet();
+}
+function vrows(list, cur) {
+  return `<div class="vlist">${list.map(x => `<div class="vrow${cur && cur.id === x.id ? ' sel' : ''}"><button class="vpick" type="button" data-vid="${esc(x.id)}"><span class="vn">${esc(x.name)}</span><span class="vm">${esc([x.g === 'F' ? 'Female' : x.g === 'M' ? 'Male' : '', x.note, x.q === 3 ? 'Premium' : x.q === 2 ? 'Enhanced' : ''].filter(Boolean).join(' · '))}</span></button><button class="icon-btn" type="button" data-prev="${esc(x.id)}" aria-label="Preview ${esc(x.name)}">${I.play20}</button></div>`).join('')}</div>`;
+}
+function renderListenSheet() {
+  if (!R.doc) return;
+  const lang = docLang(), cur = curVoice(), list = voicesFor(lang);
+  const az = list.filter(x => x.engine === 'az'), sys = list.filter(x => x.engine === 'sys');
+  const LN = lang === 'hr' ? 'Croatian' : 'English';
+  let h = `<div class="row"><span>Language of this book</span><div class="seg" id="lsLang"><button type="button" data-v="en" aria-pressed="${lang === 'en'}">English</button><button type="button" data-v="hr" aria-pressed="${lang === 'hr'}">Croatian</button></div></div>`;
+  h += `<h3 class="lsh">Natural voices <span class="muted">· Microsoft Azure</span></h3>` + (S.azKey ? vrows(az, cur) : `<p class="muted">Add your Azure key at the bottom to unlock natural male and female ${LN} voices.</p>`);
+  h += `<h3 class="lsh">iPhone voices <span class="muted">· free and offline, but they stop when the screen locks</span></h3>` + (sys.length ? vrows(sys, cur) : `<p class="muted">No ${LN} voices found on this device. You can add one in Settings → Accessibility → Spoken Content → Voices.</p>`);
+  h += `<div class="sep"></div><div class="row"><label for="lsRate">Speed</label><output id="lsRateO">${S.lsRate.toFixed(2)}×</output></div><input type="range" id="lsRate" min="0.75" max="2" step="0.05" value="${S.lsRate}">`;
+  h += `<div class="row"><span>Sleep timer</span><div class="seg" id="lsSleep">${[['off', 'Off'], ['15', '15'], ['30', '30'], ['60', '60 min'], ['ch', 'Chapter']].map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${L.sleepV === v}">${t}</button>`).join('')}</div></div>`;
+  if (cur && cur.engine === 'az') {
+    ensureChunks();
+    const g = L.gen.running && L.gen.vid === cur.id;
+    h += `<div class="sep"></div><h3 class="lsh">Offline audio <span class="muted">· ${esc(cur.name)}</span></h3><p id="lsSaved">Checking…</p><div class="actions">${g ? '<button class="btn" type="button" data-act="genstop">Stop saving</button>' : '<button class="btn primary" type="button" data-act="genall">Save whole book for offline</button>'}<button class="btn danger-text" type="button" data-act="audiodel">Delete saved audio</button></div><p class="muted">Parts you listen to are saved automatically. Saving the whole book creates every part now, so you can listen offline with the screen locked; keep Pivot open while it runs. This book has about ${bookChars().toLocaleString()} characters. Azure’s free tier covers 500,000 characters a month, then it costs about $16 per million.</p>`;
+  }
+  h += `<div class="sep"></div><details class="azset"${S.azKey && !L.azFail ? '' : ' open'}><summary>Azure voices setup</summary><label class="field" for="azKeyIn">Key<input id="azKeyIn" type="password" autocomplete="off" spellcheck="false" value="${esc(S.azKey)}"></label><label class="field" for="azRegIn">Region<input id="azRegIn" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(S.azRegion)}" placeholder="westeurope"></label><div class="actions"><button class="btn primary" type="button" data-act="azsave">Save and test</button>${S.azKey ? '<button class="btn danger-text" type="button" data-act="azclear">Remove key</button>' : ''}</div><p class="muted">To get a free key: sign in at portal.azure.com, create a “Speech service” resource on the Free (F0) tier in the West Europe region, then copy Key 1 and the region from “Keys and Endpoint”. The key is stored only on this phone.</p></details>`;
+  $('#lsBody').innerHTML = h;
+  if (cur && cur.engine === 'az') updSaved();
+}
+async function updSaved() {
+  const el = $('#lsSaved'), cur = curVoice();
+  if (!el || !cur || cur.engine !== 'az' || !R.doc) return;
+  ensureChunks();
+  const n = (await DB.keysPrefix('audio', `${R.doc.id}|${cur.id}|`)).length, a = (R.doc.aud || {})[cur.id];
+  const el2 = $('#lsSaved'); if (!el2) return;
+  el2.textContent = (L.gen.running && L.gen.vid === cur.id ? 'Saving… ' : '') + `${n} of ${L.chunks.length} parts saved` + (a && a.bytes ? ` · ${Math.max(1, Math.round(a.bytes / 1e6))} MB` : '') + (n >= L.chunks.length ? ' · ready to play offline' : '');
+}
+async function preview(id) {
+  const lang = docLang(), v = voicesFor(lang).find(x => x.id === id);
+  if (!v) return;
+  if (L.playing) lsPause();
+  if (v.engine === 'sys') {
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(VSAMPLE[lang]); u.voice = v.v; u.lang = v.v.lang; u.rate = S.lsRate; speechSynthesis.speak(u); } catch (e) {}
+    return;
+  }
+  unlockAudio();
+  setStatus('Loading a sample…', 0);
+  try {
+    const blob = await azureSynth(VSAMPLE[lang], v), a = audioEl();
+    if (L.url) URL.revokeObjectURL(L.url);
+    L.url = URL.createObjectURL(blob); L.k = -1; a.src = L.url; a.playbackRate = S.lsRate;
+    await a.play();
+    $('#status').hidden = true;
+  } catch (e) { azError(e); }
+}
+function openListen() { openSheet('listen'); renderListenSheet(); }
+$('#rListen').addEventListener('click', () => setListen(!L.on));
+$('#lsVoiceBtn').addEventListener('click', openListen);
+$('#lsSleepBtn').addEventListener('click', openListen);
+$('#lsSlower').addEventListener('click', () => setRate(S.lsRate - 0.1));
+$('#lsFaster').addEventListener('click', () => setRate(S.lsRate + 0.1));
+$('#lsBody').addEventListener('input', e => { if (e.target.id === 'lsRate') setRate(+e.target.value); });
+$('#lsBody').addEventListener('click', async e => {
+  const t = e.target, vp = t.closest('[data-vid]'), pv = t.closest('[data-prev]'), act = t.closest('[data-act]'), lg = t.closest('#lsLang button'), sl = t.closest('#lsSleep button');
+  if (vp) {
+    const was = L.playing;
+    if (was) lsPause();
+    S['voice_' + docLang()] = vp.dataset.vid; saveSettings();
+    renderListenSheet(); lsInfoVoice();
+    if (was) lsPlay();
+  } else if (pv) preview(pv.dataset.prev);
+  else if (lg) { if (L.playing) lsPause(); R.doc.lang = lg.dataset.v; touchPos(); renderListenSheet(); lsInfoVoice(); }
+  else if (sl) { setSleep(sl.dataset.v); renderListenSheet(); }
+  else if (act) {
+    switch (act.dataset.act) {
+      case 'genall': azSaveAll(); break;
+      case 'genstop': L.gen.stop = true; break;
+      case 'audiodel': {
+        const cur = curVoice(); if (!cur) break;
+        if (L.playing) lsPause();
+        L.gen.stop = true;
+        await DB.delPrefix('audio', `${R.doc.id}|${cur.id}|`);
+        if (R.doc.aud) delete R.doc.aud[cur.id];
+        touchPos(); updSaved(); setStatus('Saved audio deleted.', null);
+        break;
+      }
+      case 'azsave': {
+        S.azKey = $('#azKeyIn').value.trim();
+        S.azRegion = ($('#azRegIn').value.trim() || 'westeurope').toLowerCase().replace(/\s+/g, '');
+        saveSettings();
+        if (S.azKey) {
+          setStatus('Testing Azure…', 0);
+          try { await azureSynth('Test.', { id: 'az:en-US-AvaNeural' }); L.azFail = false; setStatus('Azure voices are ready.', null); }
+          catch (err) { L.azFail = true; azError(err); }
+        }
+        renderListenSheet(); lsInfoVoice();
+        break;
+      }
+      case 'azclear': S.azKey = ''; saveSettings(); renderListenSheet(); lsInfoVoice(); break;
+    }
+  }
+});
+if ('speechSynthesis' in window) {
+  const onVC = () => { if (R.doc && !$('#sh-listen').hidden) renderListenSheet(); if (R.doc && L.on) lsInfoVoice(); };
+  try { speechSynthesis.getVoices(); speechSynthesis.addEventListener('voiceschanged', onVC); } catch (e) { speechSynthesis.onvoiceschanged = onVC; }
+}
+if ('mediaSession' in navigator) {
+  const hs = { play: () => { if (L.on && !L.playing) lsPlay(); }, pause: () => { if (L.playing) lsPause(); }, previoustrack: () => L.on && lsSkip(-1), nexttrack: () => L.on && lsSkip(1), seekbackward: () => L.on && lsSkip(-1), seekforward: () => L.on && lsSkip(1) };
+  for (const [k, f] of Object.entries(hs)) { try { navigator.mediaSession.setActionHandler(k, f); } catch (e) {} }
+}
 
 /* ---------- Sheets ---------- */
 let sheetOpen = null;
