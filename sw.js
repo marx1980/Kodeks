@@ -1,5 +1,5 @@
 // Pivot Reader offline cache. Bump VERSION when any file changes.
-const VERSION = 'pivot-v1';
+const VERSION = 'pivot-v2';
 const FILES = [
   "./",
   "index.html",
