@@ -1053,7 +1053,7 @@ $('#grid').addEventListener('click', e => {
 });
 function openBook(id) { bookSel = id; coverFind = null; renderBook(); openSheet('book'); }
 function cfHtml() {
-  return `<form class="cfind" id="cfForm"><label class="field" for="cfT">Title<input id="cfT" type="text" value="${esc(coverFind.title)}"></label><label class="field" for="cfA">Author<input id="cfA" type="text" value="${esc(coverFind.author)}" placeholder="Optional"></label><div class="actions"><button class="btn primary" type="submit">Search covers</button><button class="btn" type="button" data-act="cfback">Back</button></div></form><p class="muted" id="cfNote"></p><div class="cfgrid" id="cfRes"></div>`;
+  return `<form class="cfind" id="cfForm"><label class="field" for="cfT">Title<input id="cfT" type="text" value="${esc(coverFind.title)}"></label><label class="field" for="cfA">Author<input id="cfA" type="text" value="${esc(coverFind.author)}" placeholder="Optional"></label><div class="actions"><button class="btn primary" type="submit">Search covers</button><button class="btn" type="button" data-act="cover">Choose from Photos</button><button class="btn" type="button" data-act="cfback">Back</button></div></form><p class="muted" id="cfNote"></p><div class="cfgrid" id="cfRes"></div>`;
 }
 async function runCoverFind() {
   const cf = coverFind;
@@ -1084,7 +1084,7 @@ function renderBook(confirmDel) {
   $('#bkBody').innerHTML = `<div class="bkhead"><div class="bkcov"><div class="cov">${coverHtml(d)}</div></div><div class="bkinfo"><div class="bkt">${esc(d.title)}</div><div class="muted">${info}</div></div></div>` +
     (coverFind && coverFind.id === d.id ? cfHtml() : confirmDel
       ? `<p>Delete “${esc(d.title)}” from this device?</p><div class="actions"><button class="btn danger" type="button" data-act="del2">Delete</button><button class="btn" type="button" data-act="keep">Keep it</button></div>`
-      : `<div class="bkacts"><button class="btn primary" type="button" data-act="open">${d.pos && !d.finished ? 'Continue reading' : 'Start reading'}</button><button class="btn" type="button" data-act="from">${from}</button><button class="btn" type="button" data-act="online">Find cover online</button><button class="btn" type="button" data-act="cover">Choose cover image</button><button class="btn" type="button" data-act="finish">${d.finished ? 'Mark as unread' : 'Mark as finished'}</button>${d.pos || d.finished ? '<button class="btn" type="button" data-act="restart">Start over</button>' : ''}<button class="btn danger-text" type="button" data-act="del">Delete</button></div>`);
+      : `<div class="bkacts"><button class="btn primary" type="button" data-act="open">${d.pos && !d.finished ? 'Continue reading' : 'Start reading'}</button><button class="btn" type="button" data-act="from">${from}</button><button class="btn" type="button" data-act="online">Find cover online</button><button class="btn" type="button" data-act="cover">Choose from Photos</button><button class="btn" type="button" data-act="finish">${d.finished ? 'Mark as unread' : 'Mark as finished'}</button>${d.pos || d.finished ? '<button class="btn" type="button" data-act="restart">Start over</button>' : ''}<button class="btn danger-text" type="button" data-act="del">Delete</button></div>`);
 }
 $('#bkBody').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
@@ -1120,7 +1120,7 @@ $('#coverFile').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = '';
   const d = docs.find(x => x.id === coverTarget);
   if (!f || !d) return;
-  try { d.cover = await coverFromBlob(f); await DB.put('meta', d); renderLibrary(); renderBook(); }
+  try { const c = await coverFromBlob(f); await setCover(d.id, c); coverFind = null; renderBook(); setStatus('Cover updated.', null); }
   catch (err) { setStatus('That image could not be used as a cover.', null, true); }
 });
 

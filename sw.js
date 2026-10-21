@@ -1,5 +1,5 @@
 // Pivot Reader offline cache. Bump VERSION when any app file changes.
-const VERSION = 'pivot-v6';
+const VERSION = 'pivot-v7';
 const IMG = 'pivot-img'; // cover images from other sites, kept across versions
 const FILES = [
   "./",
