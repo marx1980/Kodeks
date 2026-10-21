@@ -184,7 +184,7 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:0;height:28px}
 .card{display:flex;flex-direction:column;gap:9px;min-width:0}
 .cov{appearance:none;border:0;padding:0;display:block;position:relative;width:100%;aspect-ratio:2/3;background:var(--track);border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgb(0 0 0 / .25),0 4px 14px rgb(0 0 0 / .16);color:inherit}
 .cov img{width:100%;height:100%;object-fit:cover;display:block}
-.cov .fb{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;gap:8px;padding:14px 12px;color:#fff;text-align:left;background:linear-gradient(160deg,hsl(var(--h) 42% 38%),hsl(var(--h2) 45% 22%))}
+.cov .fb,.dcov .fb{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;gap:8px;padding:14px 12px;color:#fff;text-align:left;background:linear-gradient(160deg,hsl(var(--h) 42% 38%),hsl(var(--h2) 45% 22%))}
 .fb b{font-family:var(--serif);font-size:1rem;line-height:1.2;font-weight:600;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .fb i{font-style:normal;font-size:.74rem;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cov .pbar{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgb(0 0 0 / .4)}
@@ -201,6 +201,25 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:0;height:28px}
 .bkt{font-family:var(--serif);font-weight:600;font-size:1.15rem;line-height:1.3}
 .bkacts{display:flex;flex-direction:column;gap:8px}
 .bkacts .btn{width:100%}
+a.btn{text-decoration:none}
+#srcSeg{display:flex}
+#srcSeg button{flex:1}
+.discform{display:flex;flex-wrap:wrap;gap:8px}
+.discform .search{flex:1 1 100%}
+.discform select.search{flex:1 1 auto;width:auto;-webkit-appearance:none;appearance:none}
+.discform .btn{flex:none}
+.dlist{display:flex;flex-direction:column}
+.ditem{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+.ditem:first-child{border-top:0}
+.dcov{position:relative;width:64px;aspect-ratio:2/3;border-radius:6px;overflow:hidden;background:var(--track);box-shadow:0 1px 2px rgb(0 0 0 / .25)}
+.dcov img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.dcov .fb{padding:6px}
+.dcov .fb b{font-size:.58rem;-webkit-line-clamp:5}
+.dinfo{min-width:0;display:flex;flex-direction:column;gap:2px}
+.dt{font-family:var(--serif);font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.da{color:var(--muted);font-size:.86rem}
+.dm{color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.dact{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -229,9 +248,25 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:0;height:28px}
   <div class="grid" id="grid"></div>
 </main>
 
+<main class="lib" id="disc" hidden>
+  <header class="brand"><h1>Discover</h1><p>Public-domain books from Project Gutenberg and pre-1931 books from the Internet Archive. Needs an internet connection.</p></header>
+  <div class="seg" id="srcSeg"><button type="button" data-v="gut" aria-pressed="true">Project Gutenberg</button><button type="button" data-v="ia" aria-pressed="false">Internet Archive</button></div>
+  <form class="discform" id="discForm" role="search">
+    <input type="search" id="discQ" class="search" placeholder="Title, author or subject" aria-label="Search books" enterkeyhint="search" autocomplete="off">
+    <select id="discLang" class="search" aria-label="Language">
+      <option value="">Any language</option><option value="en">English</option><option value="hr">Croatian</option><option value="de">German</option><option value="fr">French</option><option value="es">Spanish</option><option value="it">Italian</option>
+    </select>
+    <button class="btn primary" type="submit">Search</button>
+  </form>
+  <p class="muted" id="discNote"></p>
+  <div class="dlist" id="discList"></div>
+  <button class="btn" type="button" id="discMore" hidden>Load more</button>
+</main>
+
 <nav class="tabs" id="tabs" aria-label="Sections">
   <button type="button" data-tab="read" aria-current="page"><span data-icon="book"></span>Read</button>
   <button type="button" data-tab="shelf"><span data-icon="grid"></span>Library</button>
+  <button type="button" data-tab="disc"><span data-icon="compass"></span>Discover</button>
 </nav>
 
 <div class="status toast" id="status" role="status" hidden>
@@ -372,6 +407,7 @@ const I = {
   x: sv('<path d="M6 6l12 12M18 6L6 18"/>'),
   plus: sv('<path d="M12 5v14M5 12h14"/>', 20),
   book: sv('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16"/>', 24),
+  compass: sv('<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>', 24),
   grid: sv('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>', 24)
 };
 
@@ -934,12 +970,14 @@ function renderShelf() {
 }
 function syncFilter() { $('#shelfFilter').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === F.f))); }
 function setTab(t) {
-  tab = t === 'shelf' ? 'shelf' : 'read';
+  tab = ['read', 'shelf', 'disc'].includes(t) ? t : 'read';
   LS.set('tab', tab);
   $('#lib').hidden = tab !== 'read';
   $('#shelf').hidden = tab !== 'shelf';
+  $('#disc').hidden = tab !== 'disc';
   $('#tabs').querySelectorAll('button').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   if (tab === 'shelf') renderShelf();
+  if (tab === 'disc' && !D.loaded) discSearch(false);
   window.scrollTo(0, 0);
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
@@ -991,6 +1029,143 @@ $('#coverFile').addEventListener('change', async e => {
   catch (err) { setStatus('That image could not be used as a cover.', null, true); }
 });
 
+/* ---------- Discover ---------- */
+const D = { src: 'gut', q: '', lang: '', next: null, page: 1, total: 0, items: new Map(), order: [], loaded: false, loading: false, busy: false };
+const IA_LANG = { en: '(eng OR English)', hr: '(hrv OR Croatian OR scr)', de: '(ger OR deu OR German)', fr: '(fre OR fra OR French)', es: '(spa OR Spanish)', it: '(ita OR Italian)' };
+const flipName = n => { const m = String(n || '').match(/^([^,]+),\s*([^,(]+)/); return m ? m[2].trim() + ' ' + m[1].trim() : String(n || ''); };
+function jsonp(url) {
+  return new Promise((res, rej) => {
+    const cb = 'jp' + Math.random().toString(36).slice(2), s = document.createElement('script');
+    const done = () => { clearTimeout(t); delete window[cb]; s.remove(); };
+    const t = setTimeout(() => { done(); rej(new Error('timeout')); }, 15000);
+    window[cb] = d => { done(); res(d); };
+    s.onerror = () => { done(); rej(new Error('jsonp')); };
+    s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    document.head.appendChild(s);
+  });
+}
+async function getJSON(url, allowJsonp) {
+  try { const r = await fetch(url); if (!r.ok) throw new Error('http ' + r.status); return await r.json(); }
+  catch (e) { if (allowJsonp) return jsonp(url); throw e; }
+}
+async function discSearch(more) {
+  if (D.loading) return;
+  D.loading = true;
+  const note = $('#discNote');
+  if (!more) { D.items.clear(); D.order = []; D.next = null; D.page = 1; $('#discList').innerHTML = ''; }
+  $('#discMore').hidden = true;
+  note.textContent = 'Searching…';
+  try {
+    let got = [];
+    if (D.src === 'gut') {
+      const url = more && D.next ? D.next : 'https://gutendex.com/books/?' + new URLSearchParams(Object.assign({ mime_type: 'application/epub' }, D.q ? { search: D.q } : {}, D.lang ? { languages: D.lang } : {}));
+      const j = await getJSON(url, false);
+      D.next = j.next || null; D.total = j.count || 0;
+      got = (j.results || []).map(b => {
+        const f = b.formats || {};
+        return { key: 'gutenberg:' + b.id, src: 'gut', id: b.id, title: b.title, author: (b.authors || []).map(a => flipName(a.name)).join(', '), cover: f['image/jpeg'] || '', url: f['application/epub+zip'], fmt: 'EPUB', dl: b.download_count || 0, page: 'https://www.gutenberg.org/ebooks/' + b.id };
+      }).filter(b => b.url);
+    } else {
+      if (more) D.page++;
+      const qs = ['mediatype:texts', '(format:EPUB OR format:"Text PDF")', 'date:[1000-01-01 TO 1930-12-31]', '-collection:(inlibrary OR printdisabled OR lendinglibrary)'];
+      const clean = D.q.replace(/[+\-!(){}\[\]^"~*?:\\\/&|]/g, ' ').trim();
+      if (clean) qs.unshift('(' + clean + ')');
+      if (D.lang && IA_LANG[D.lang]) qs.push('language:' + IA_LANG[D.lang]);
+      const p = new URLSearchParams();
+      p.set('q', qs.join(' AND '));
+      ['identifier', 'title', 'creator', 'downloads', 'format', 'date'].forEach(f => p.append('fl[]', f));
+      p.set('rows', '24'); p.set('page', String(D.page)); p.append('sort[]', 'downloads desc'); p.set('output', 'json');
+      const j = await getJSON('https://archive.org/advancedsearch.php?' + p, true);
+      const r = j.response || {};
+      D.total = r.numFound || 0;
+      D.next = D.page * 24 < D.total ? 'more' : null;
+      got = (r.docs || []).map(b => {
+        const f = [].concat(b.format || []), cr = [].concat(b.creator || []);
+        return { key: 'archive:' + b.identifier, src: 'ia', id: b.identifier, title: [].concat(b.title || b.identifier)[0], author: cr.slice(0, 2).join(', '), cover: 'https://archive.org/services/img/' + encodeURIComponent(b.identifier), fmt: f.includes('EPUB') ? 'EPUB' : 'PDF', dl: b.downloads || 0, year: String(b.date || '').slice(0, 4), page: 'https://archive.org/details/' + encodeURIComponent(b.identifier) };
+      });
+    }
+    for (const b of got) if (!D.items.has(b.key)) { D.items.set(b.key, b); D.order.push(b.key); }
+    D.loaded = true;
+    note.textContent = D.order.length ? `${D.total.toLocaleString()} ${D.total === 1 ? 'book' : 'books'}${D.q ? ' for “' + D.q + '”' : ''} · most downloaded first` : 'No books found. Try fewer or different words.';
+    renderDisc();
+    $('#discMore').hidden = !D.next;
+  } catch (e) {
+    if (more && D.src === 'ia') D.page--;
+    note.textContent = navigator.onLine === false ? 'You’re offline. Discover needs an internet connection.' : 'The library couldn’t be reached. Try again in a moment.';
+  } finally { D.loading = false; }
+}
+function discItemHtml(b) {
+  const inLib = docs.find(d => d.source === b.key);
+  const h = hueOf(b.title);
+  const meta = [b.fmt, b.year, b.dl ? b.dl.toLocaleString() + ' downloads' : ''].filter(Boolean).join(' · ');
+  const act = inLib
+    ? `<button class="btn sm" type="button" data-act="openlib" data-id="${esc(inLib.id)}">In library · Read</button>`
+    : `<button class="btn sm primary" type="button" data-act="get">Add to library</button>`;
+  return `<div class="ditem" data-k="${esc(b.key)}"><div class="dcov"><span class="fb" style="--h:${h};--h2:${(h + 35) % 360}"><b>${esc(b.title)}</b></span>${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div><div class="dinfo"><div class="dt">${esc(b.title)}</div><div class="da">${esc(b.author || 'Unknown author')}</div><div class="dm">${esc(meta)}</div><div class="dact">${act}<a class="btn sm" href="${esc(b.page)}" target="_blank" rel="noopener">Details</a></div></div></div>`;
+}
+function renderDisc() { $('#discList').innerHTML = D.order.map(k => discItemHtml(D.items.get(k))).join(''); }
+async function download(url, name, label) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('http ' + r.status);
+  const total = +r.headers.get('content-length') || 0, type = r.headers.get('content-type') || '';
+  if (!r.body || !r.body.getReader) return new File([await r.blob()], name, { type });
+  const rd = r.body.getReader(), parts = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await rd.read();
+    if (done) break;
+    parts.push(value); got += value.length;
+    setStatus(total ? `${label} ${Math.min(100, Math.round(got / total * 100))}%` : `${label} ${(got / 1e6).toFixed(1)} MB`, total ? Math.min(1, got / total) : 0);
+  }
+  return new File(parts, name, { type });
+}
+async function iaFile(id) {
+  const j = await getJSON('https://archive.org/metadata/' + encodeURIComponent(id), true);
+  const files = j.files || [];
+  const f = files.find(x => x.format === 'EPUB') || files.find(x => x.format === 'Text PDF') || files.find(x => /\.pdf$/i.test(x.name || ''));
+  if (!f) throw new Error('nofile');
+  return { url: 'https://archive.org/download/' + encodeURIComponent(id) + '/' + String(f.name).split('/').map(encodeURIComponent).join('/'), name: String(f.name).split('/').pop(), size: +f.size || 0 };
+}
+async function getBook(row) {
+  const b = D.items.get(row.dataset.k);
+  if (!b) return;
+  if (D.busy) { setStatus('Another book is still downloading. Try again when it’s done.', null, true); return; }
+  const btn = row.querySelector('[data-act=get]');
+  D.busy = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
+  let info = null, file = null;
+  try {
+    if (b.src === 'ia') { setStatus('Finding the book file…', 0); info = await iaFile(b.id); }
+    else info = { url: b.url, name: 'pg' + b.id + '.epub', size: 0 };
+    const mb = info.size ? ` (${(info.size / 1e6).toFixed(info.size > 1e7 ? 0 : 1)} MB)` : '';
+    file = await download(info.url, info.name, `Downloading “${b.title}”${mb}…`);
+  } catch (e) {
+    D.busy = false;
+    row.querySelector('.dact').innerHTML = `<a class="btn sm primary" href="${esc(info ? info.url : b.page)}" target="_blank" rel="noopener">Download in browser</a><a class="btn sm" href="${esc(b.page)}" target="_blank" rel="noopener">Details</a>`;
+    setStatus(navigator.onLine === false ? 'You’re offline. Connect to the internet to download books.' : 'This library didn’t let the app download the file directly. Tap “Download in browser”, then import the file from Files on the Read tab.', null, true);
+    return;
+  }
+  await importFile(file, { source: b.key, title: b.title, author: b.author });
+  D.busy = false;
+  renderDisc();
+}
+$('#discForm').addEventListener('submit', e => { e.preventDefault(); D.q = $('#discQ').value.trim(); D.lang = $('#discLang').value; $('#discQ').blur(); discSearch(false); });
+$('#discLang').addEventListener('change', () => { D.lang = $('#discLang').value; discSearch(false); });
+$('#srcSeg').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || b.dataset.v === D.src) return;
+  D.src = b.dataset.v;
+  $('#srcSeg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  discSearch(false);
+});
+$('#discMore').addEventListener('click', () => discSearch(true));
+$('#discList').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  if (b.dataset.act === 'get') getBook(b.closest('.ditem'));
+  else if (b.dataset.act === 'openlib') openDoc(b.dataset.id);
+});
+
 let stT = null;
 function setStatus(msg, frac, isErr) {
   const el = $('#status');
@@ -1005,7 +1180,7 @@ function setStatus(msg, frac, isErr) {
 $('#status').addEventListener('click', () => { if ($('#statusBarWrap').hidden) $('#status').hidden = true; });
 async function saveDoc(d) { await DB.put('text', d.text); await DB.put('meta', d.meta); }
 
-async function importFile(f) {
+async function importFile(f, extra) {
   const name = f.name || 'file', low = name.toLowerCase();
   try {
     setStatus(`Opening ${name}…`, 0);
@@ -1015,14 +1190,17 @@ async function importFile(f) {
     else if (low.endsWith('.txt') || low.endsWith('.md') || (f.type || '').startsWith('text/')) res = { title: name.replace(/\.[^.]+$/, ''), author: '', kind: 'Text', items: toParas(await f.text()) };
     else throw new Error(`“${name}” isn’t a PDF, EPUB or text file.`);
     const d = buildDoc(res);
+    if (extra) for (const k in extra) if (extra[k]) d.meta[k] = extra[k];
     await saveDoc(d);
     await refreshLibrary();
     if (d.meta.kind === 'PDF' || (d.meta.kind === 'EPUB' && !d.meta.cover)) findCover(d.meta, true);
     const ch = d.meta.chapters.length;
     setStatus(`Added “${d.meta.title}” · ${d.meta.wordCount.toLocaleString()} words${ch ? ' · ' + ch + ' chapters' : ''}`, null);
+    return d.meta.id;
   } catch (err) {
     console.error(err);
     setStatus((err && err.message) || `Could not read ${name}.`, null, true);
+    return null;
   }
 }
 $('#file').addEventListener('change', async e => {
