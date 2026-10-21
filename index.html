@@ -184,6 +184,12 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:0;height:28px}
 .card{display:flex;flex-direction:column;gap:9px;min-width:0}
 .cov{appearance:none;border:0;padding:0;display:block;position:relative;width:100%;aspect-ratio:2/3;background:var(--track);border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgb(0 0 0 / .25),0 4px 14px rgb(0 0 0 / .16);color:inherit}
 .cov img{width:100%;height:100%;object-fit:cover;display:block}
+.cov img.abs{position:absolute;inset:0}
+.cfind{display:flex;flex-direction:column;gap:10px}
+.cfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:12px}
+.cfgrid .fb{padding:8px}
+.cfgrid .fb b{font-size:.68rem}
+.cfgrid .fb i{font-size:.6rem}
 .cov .fb,.dcov .fb{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;gap:8px;padding:14px 12px;color:#fff;text-align:left;background:linear-gradient(160deg,hsl(var(--h) 42% 38%),hsl(var(--h2) 45% 22%))}
 .fb b{font-family:var(--serif);font-size:1rem;line-height:1.2;font-weight:600;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .fb i{font-style:normal;font-size:.74rem;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -580,7 +586,7 @@ function isbnFrom(text) {
   for (const m of text.matchAll(/\b97[89][0-9\- ]{9,15}[0-9]\b/g)) { const d = strip(m[0]); if (d.length === 13 && isbnOk(d)) return d; }
   return '';
 }
-const normT = s => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const normT = s => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 async function imgFetch(url) {
   try {
     const r = await fetch(url);
@@ -590,31 +596,71 @@ async function imgFetch(url) {
     return await coverFromBlob(b);
   } catch (e) { return ''; }
 }
-async function onlineCover(m) {
-  if (m.isbn) { const c = await imgFetch(`https://covers.openlibrary.org/b/isbn/${m.isbn}-L.jpg?default=false`); if (c) return c; }
-  try {
-    const q = new URLSearchParams({ title: m.title, limit: '8', fields: 'title,cover_i' });
-    if (m.author) q.set('author', m.author.split(/[,;&]| and /)[0].trim());
-    const r = await fetch('https://openlibrary.org/search.json?' + q);
-    if (!r.ok) return '';
-    const j = await r.json();
-    const nt = normT(m.title);
-    const hit = (j.docs || []).find(x => { const t = normT(x.title); return x.cover_i && t && nt && (t === nt || nt.startsWith(t) || t.startsWith(nt)); });
-    if (hit) return await imgFetch(`https://covers.openlibrary.org/b/id/${hit.cover_i}-L.jpg?default=false`);
-  } catch (e) {}
+function probeImg(url) {
+  return new Promise(res => {
+    const im = new Image(), t = setTimeout(() => res(false), 12000);
+    im.onload = () => { clearTimeout(t); res(im.naturalWidth > 40); };
+    im.onerror = () => { clearTimeout(t); res(false); };
+    im.src = url;
+  });
+}
+// Returns a saved image (data URL) when the site allows it, otherwise the image address,
+// which the app's offline cache keeps after the first time it is shown.
+async function resolveCover(urls) {
+  urls = urls.filter(Boolean);
+  for (const u of urls) { const c = await imgFetch(u); if (c) return c; }
+  for (const u of urls) if (await probeImg(u)) return u;
   return '';
 }
+const gThumb = u => String(u || '').replace(/^http:/, 'https:').replace(/&edge=curl/, '');
+async function coverCandidates(title, author, isbn) {
+  const out = [], seen = new Set();
+  const add = c => { if (c.thumb && !seen.has(c.thumb)) { seen.add(c.thumb); out.push(c); } };
+  const google = async q => {
+    try {
+      const j = await getJSON('https://www.googleapis.com/books/v1/volumes?' + new URLSearchParams({ q, maxResults: '12', printType: 'books' }), false);
+      for (const it of j.items || []) {
+        const v = it.volumeInfo || {}, il = v.imageLinks || {}, t = gThumb(il.thumbnail || il.smallThumbnail);
+        if (t) add({ title: v.title || '', author: (v.authors || []).join(', '), thumb: t, big: [t + '&fife=w480-h720', t], src: 'Google Books', byIsbn: q.startsWith('isbn:') });
+      }
+    } catch (e) {}
+  };
+  const openlib = async () => {
+    try {
+      const p = new URLSearchParams({ title, limit: '12', fields: 'title,author_name,cover_i' });
+      if (author) p.set('author', author);
+      const j = await getJSON('https://openlibrary.org/search.json?' + p, false);
+      for (const d of j.docs || []) if (d.cover_i) add({ title: d.title || '', author: (d.author_name || []).join(', '), thumb: `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`, big: [`https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg`], src: 'Open Library' });
+    } catch (e) {}
+  };
+  if (isbn) {
+    add({ title, author, thumb: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false`, big: [`https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`], src: 'Open Library', byIsbn: true });
+    await google('isbn:' + isbn);
+  }
+  const q = ((title ? 'intitle:' + title : '') + (author ? ' inauthor:' + author.split(/[,;&]| and /)[0].trim() : '')).trim();
+  if (q) await Promise.all([google(q), title ? openlib() : null]);
+  return out;
+}
+function goodMatch(c, m) {
+  if (c.byIsbn) return true;
+  const a = normT(c.title), b = normT(m.title);
+  if (!a || !b || !(a === b || a.startsWith(b) || b.startsWith(a))) return false;
+  if (!m.author || !c.author) return true;
+  return normT(c.author).includes(normT(m.author).split(' ').pop());
+}
+async function setCover(id, c) {
+  const rec = await DB.get('meta', id);
+  if (rec) { rec.cover = c; await DB.put('meta', rec); }
+  const e = docs.find(x => x.id === id); if (e) e.cover = c;
+  if (R.doc && R.doc.id === id) R.doc.cover = c;
+  renderLibrary();
+}
 async function findCover(m, quiet) {
-  const c = await onlineCover(m);
-  if (c) {
-    const rec = await DB.get('meta', m.id);
-    if (rec) { rec.cover = c; await DB.put('meta', rec); }
-    const e = docs.find(x => x.id === m.id); if (e) e.cover = c;
-    if (R.doc && R.doc.id === m.id) R.doc.cover = c;
-    renderLibrary();
-    if (bookSel === m.id && sheetOpen && sheetOpen.id === 'sh-book') renderBook();
-    if (!quiet) setStatus('Cover found.', null);
-  } else if (!quiet) setStatus('No cover found online. Check your connection, or choose an image with Change cover.', null, true);
+  const cands = (await coverCandidates(m.title, m.author, m.isbn)).filter(x => goodMatch(x, m)).slice(0, 4);
+  let c = '';
+  for (const k of cands) { c = await resolveCover(k.big.concat(k.thumb)); if (c) break; }
+  if (c) await setCover(m.id, c);
+  if (!quiet) setStatus(c ? 'Cover found.' : 'No matching cover found. Use “Find cover online” to pick one.', null, !c);
   return !!c;
 }
 
@@ -942,12 +988,13 @@ $('#groups').addEventListener('click', async e => {
 
 /* ---------- Library screen ---------- */
 const F = { q: '', f: 'all' };
-let tab = 'read', bookSel = null, coverTarget = null;
+let tab = 'read', bookSel = null, coverTarget = null, coverFind = null;
 const hueOf = s => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 function coverHtml(d) {
-  if (d.cover) return `<img src="${d.cover}" alt="" decoding="async">`;
+  if (d.cover && !/^https?:/.test(d.cover)) return `<img src="${d.cover}" alt="" decoding="async">`;
   const h = hueOf(d.title);
-  return `<span class="fb" style="--h:${h};--h2:${(h + 35) % 360}"><b>${esc(d.title)}</b><i>${esc(d.author || d.kind || '')}</i></span>`;
+  const fb = `<span class="fb" style="--h:${h};--h2:${(h + 35) % 360}"><b>${esc(d.title)}</b><i>${esc(d.author || d.kind || '')}</i></span>`;
+  return d.cover ? fb + `<img class="abs" src="${esc(d.cover)}" alt="" decoding="async" onerror="this.remove()">` : fb;
 }
 function renderShelf() {
   if ($('#shelf').hidden) return;
@@ -989,7 +1036,30 @@ $('#grid').addEventListener('click', e => {
   if (b.dataset.act === 'open') openDoc(card.dataset.id);
   else if (b.dataset.act === 'menu') openBook(card.dataset.id);
 });
-function openBook(id) { bookSel = id; renderBook(); openSheet('book'); }
+function openBook(id) { bookSel = id; coverFind = null; renderBook(); openSheet('book'); }
+function cfHtml() {
+  return `<form class="cfind" id="cfForm"><label class="field" for="cfT">Title<input id="cfT" type="text" value="${esc(coverFind.title)}"></label><label class="field" for="cfA">Author<input id="cfA" type="text" value="${esc(coverFind.author)}" placeholder="Optional"></label><div class="actions"><button class="btn primary" type="submit">Search covers</button><button class="btn" type="button" data-act="cfback">Back</button></div></form><p class="muted" id="cfNote"></p><div class="cfgrid" id="cfRes"></div>`;
+}
+async function runCoverFind() {
+  const cf = coverFind;
+  if (!cf || !$('#cfNote')) return;
+  $('#cfNote').textContent = 'Searching Google Books and Open Library…';
+  $('#cfRes').innerHTML = '';
+  const doc = docs.find(x => x.id === cf.id) || {};
+  const list = await coverCandidates(cf.title, cf.author, cf.title === doc.title ? doc.isbn : '');
+  if (coverFind !== cf || !$('#cfRes')) return;
+  cf.results = list;
+  $('#cfNote').textContent = list.length ? 'Tap the right cover. Blank tiles had no picture.' : (navigator.onLine === false ? 'You’re offline. Connect to the internet to search for covers.' : 'No covers found. Try a shorter title, the original-language title, or just the author.');
+  $('#cfRes').innerHTML = list.map((c, i) => { const h = hueOf(c.title); return `<button class="cov" type="button" data-act="cfpick" data-i="${i}" aria-label="${esc(c.title)}"><span class="fb" style="--h:${h};--h2:${(h + 35) % 360}"><b>${esc(c.title)}</b><i>${esc(c.src)}</i></span><img class="abs" src="${esc(c.thumb)}" alt="" loading="lazy" onerror="this.remove()"></button>`; }).join('');
+}
+$('#bkBody').addEventListener('submit', e => {
+  if (e.target.id !== 'cfForm' || !coverFind) return;
+  e.preventDefault();
+  coverFind.title = $('#cfT').value.trim();
+  coverFind.author = $('#cfA').value.trim();
+  document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  runCoverFind();
+});
 function renderBook(confirmDel) {
   const d = docs.find(x => x.id === bookSel);
   if (!d) { closeSheet(); return; }
@@ -997,7 +1067,7 @@ function renderBook(confirmDel) {
   const info = [d.author, d.kind, d.wordCount.toLocaleString() + ' words', d.finished ? 'Finished' : p ? p + '% read' : 'Not started'].filter(Boolean).map(esc).join(' · ');
   const from = d.chapters.length ? 'Start from a chapter' : d.pages ? 'Start from a page' : 'Choose where to start';
   $('#bkBody').innerHTML = `<div class="bkhead"><div class="bkcov"><div class="cov">${coverHtml(d)}</div></div><div class="bkinfo"><div class="bkt">${esc(d.title)}</div><div class="muted">${info}</div></div></div>` +
-    (confirmDel
+    (coverFind && coverFind.id === d.id ? cfHtml() : confirmDel
       ? `<p>Delete “${esc(d.title)}” from this device?</p><div class="actions"><button class="btn danger" type="button" data-act="del2">Delete</button><button class="btn" type="button" data-act="keep">Keep it</button></div>`
       : `<div class="bkacts"><button class="btn primary" type="button" data-act="open">${d.pos && !d.finished ? 'Continue reading' : 'Start reading'}</button><button class="btn" type="button" data-act="from">${from}</button><button class="btn" type="button" data-act="online">Find cover online</button><button class="btn" type="button" data-act="cover">Choose cover image</button><button class="btn" type="button" data-act="finish">${d.finished ? 'Mark as unread' : 'Mark as finished'}</button>${d.pos || d.finished ? '<button class="btn" type="button" data-act="restart">Start over</button>' : ''}<button class="btn danger-text" type="button" data-act="del">Delete</button></div>`);
 }
@@ -1008,7 +1078,17 @@ $('#bkBody').addEventListener('click', async e => {
     case 'open': closeSheet(); openDoc(d.id); break;
     case 'from': closeSheet(); await openDoc(d.id); if (!reader.hidden) openGoto(); break;
     case 'cover': coverTarget = d.id; $('#coverFile').click(); break;
-    case 'online': setStatus('Looking for a cover…', 0); findCover(d, false); break;
+    case 'online': coverFind = { id: d.id, title: d.title, author: d.author || '', results: [] }; renderBook(); runCoverFind(); break;
+    case 'cfback': coverFind = null; renderBook(); break;
+    case 'cfpick': {
+      const c = coverFind && coverFind.results[+b.dataset.i];
+      if (!c) break;
+      setStatus('Saving cover…', 0);
+      const v = await resolveCover(c.big.concat(c.thumb));
+      if (v) { await setCover(d.id, v); coverFind = null; renderBook(); setStatus('Cover updated.', null); }
+      else setStatus('That cover couldn’t be loaded. Pick another one.', null, true);
+      break;
+    }
     case 'finish':
       d.finished = !d.finished;
       if (!d.finished && d.pos >= d.wordCount - 1) d.pos = 0;
