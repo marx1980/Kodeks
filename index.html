@@ -1618,6 +1618,8 @@ const SILENT = (() => {
   let t = ''; b.forEach(x => { t += String.fromCharCode(x); }); return 'data:audio/wav;base64,' + btoa(t);
 })();
 const sleepMs = ms => new Promise(r => setTimeout(r, ms));
+// Ask iOS to treat Pivot's sound as media playback, so Silent mode doesn't mute it
+function mediaAudio() { try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) {} }
 const escXml = t => t.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
 
 function guessLang(words) {
@@ -1848,6 +1850,7 @@ function lsPlay() {
   const v = curVoice();
   if (!v) { openListen(); return; }
   if (R.pos >= R.words.length - 1) R.pos = 0;
+  mediaAudio();
   L.voice = v; L.playing = true;
   setPlayIcon(); mediaMeta();
   if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
@@ -1956,6 +1959,7 @@ async function preview(id) {
   const lang = docLang(), v = voicesFor(lang).find(x => x.id === id);
   if (!v) return;
   if (L.playing) lsPause();
+  mediaAudio();
   if (v.engine === 'sys') {
     try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(VSAMPLE[lang]); u.voice = v.v; u.lang = v.v.lang; u.rate = S.lsRate; speechSynthesis.speak(u); } catch (e) {}
     return;
