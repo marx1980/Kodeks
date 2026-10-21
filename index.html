@@ -637,9 +637,24 @@ async function coverCandidates(title, author, isbn) {
     add({ title, author, thumb: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false`, big: [`https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`], src: 'Open Library', byIsbn: true });
     await google('isbn:' + isbn);
   }
-  const q = ((title ? 'intitle:' + title : '') + (author ? ' inauthor:' + author.split(/[,;&]| and /)[0].trim() : '')).trim();
-  if (q) await Promise.all([google(q), title ? openlib() : null]);
-  return out;
+  const apple = async term => {
+    const cs = [...new Set(['us', ((navigator.language || '').split('-')[1] || '').toLowerCase()].filter(c => /^[a-z]{2}$/.test(c)))];
+    await Promise.all(cs.map(async country => {
+      try {
+        const j = await getJSON('https://itunes.apple.com/search?' + new URLSearchParams({ term, media: 'ebook', entity: 'ebook', limit: '20', country }), true);
+        for (const r of j.results || []) {
+          const a = r.artworkUrl100 || r.artworkUrl60;
+          if (a) add({ title: r.trackName || '', author: r.artistName || '', thumb: a.replace(/\/\d+x\d+bb\./, '/300x300bb.'), big: [a.replace(/\/\d+x\d+bb\./, '/600x600bb.')], src: 'Apple Books' });
+        }
+      } catch (e) {}
+    }));
+  };
+  const who = author ? author.split(/[,;&]| and /)[0].trim() : '';
+  const q = ((title ? 'intitle:' + title : '') + (who ? ' inauthor:' + who : '')).trim();
+  const free = [title, who].filter(Boolean).join(' ');
+  await Promise.all([q ? google(q) : null, title ? openlib() : null, free ? apple(free) : null]);
+  if (out.length < 6 && free) await Promise.all([google(free), who ? google('inauthor:"' + who + '"') : null, who && title ? apple(who) : null]);
+  return out.slice(0, 36);
 }
 function goodMatch(c, m) {
   if (c.byIsbn) return true;
@@ -1043,7 +1058,7 @@ function cfHtml() {
 async function runCoverFind() {
   const cf = coverFind;
   if (!cf || !$('#cfNote')) return;
-  $('#cfNote').textContent = 'Searching Google Books and Open Library…';
+  $('#cfNote').textContent = 'Searching Google Books, Apple Books and Open Library…';
   $('#cfRes').innerHTML = '';
   const doc = docs.find(x => x.id === cf.id) || {};
   const list = await coverCandidates(cf.title, cf.author, cf.title === doc.title ? doc.isbn : '');
