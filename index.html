@@ -460,7 +460,7 @@ function toParas(raw) {
   return blocks.map(b => ({ type: 'p', text: b }));
 }
 
-function buildDoc({ title, author, kind, items, cover }) {
+function buildDoc({ title, author, kind, items, cover, isbn }) {
   const paras = [], chapters = [], pages = [];
   let wc = 0, pending = null, pendPg = [];
   for (const it of items) {
@@ -489,7 +489,7 @@ function buildDoc({ title, author, kind, items, cover }) {
   if (!wc) throw new Error('No readable text was found in this file.');
   const id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   return {
-    meta: { id, title: cleanText(title) || 'Untitled', author: cleanText(author), kind, wordCount: wc, chapters, ...(pages.length ? { pages } : {}), ...(cover ? { cover } : {}), pos: 0, addedAt: Date.now(), lastReadAt: 0, finished: false },
+    meta: { id, title: cleanText(title) || 'Untitled', author: cleanText(author), kind, wordCount: wc, chapters, ...(pages.length ? { pages } : {}), ...(cover ? { cover } : {}), ...(isbn ? { isbn } : {}), pos: 0, addedAt: Date.now(), lastReadAt: 0, finished: false },
     text: { id, text: paras.join('\n') }
   };
 }
@@ -524,6 +524,62 @@ async function coverFromBlob(blob) {
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
   g.drawImage(im, 0, 0, w, Math.round(ih * sc));
   return c.toDataURL('image/jpeg', 0.78);
+}
+
+/* ---------- ISBN and online covers ---------- */
+function isbnOk(d) {
+  if (d.length === 13) { let t = 0; for (let i = 0; i < 12; i++) t += (+d[i]) * (i % 2 ? 3 : 1); return (10 - t % 10) % 10 === +d[12]; }
+  if (d.length === 10) { let t = 0; for (let i = 0; i < 9; i++) t += (+d[i]) * (10 - i); t += d[9].toUpperCase() === 'X' ? 10 : +d[9]; return t % 11 === 0; }
+  return false;
+}
+function isbnFrom(text) {
+  text = String(text || '').replace(/[‐-―]/g, '-');
+  const strip = x => x.replace(/[^0-9Xx]/g, '');
+  let best = '';
+  for (const m of text.matchAll(/ISBN[^0-9]{0,14}([0-9][0-9\- ]{8,16}[0-9Xx])/gi)) {
+    const d = strip(m[1]);
+    if (isbnOk(d) && (d.length === 13 || !best)) { best = d; if (d.length === 13) return d; }
+  }
+  if (best) return best;
+  for (const m of text.matchAll(/\b97[89][0-9\- ]{9,15}[0-9]\b/g)) { const d = strip(m[0]); if (d.length === 13 && isbnOk(d)) return d; }
+  return '';
+}
+const normT = s => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+async function imgFetch(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return '';
+    const b = await r.blob();
+    if (b.size < 1500 || !/^image\//.test(b.type)) return '';
+    return await coverFromBlob(b);
+  } catch (e) { return ''; }
+}
+async function onlineCover(m) {
+  if (m.isbn) { const c = await imgFetch(`https://covers.openlibrary.org/b/isbn/${m.isbn}-L.jpg?default=false`); if (c) return c; }
+  try {
+    const q = new URLSearchParams({ title: m.title, limit: '8', fields: 'title,cover_i' });
+    if (m.author) q.set('author', m.author.split(/[,;&]| and /)[0].trim());
+    const r = await fetch('https://openlibrary.org/search.json?' + q);
+    if (!r.ok) return '';
+    const j = await r.json();
+    const nt = normT(m.title);
+    const hit = (j.docs || []).find(x => { const t = normT(x.title); return x.cover_i && t && nt && (t === nt || nt.startsWith(t) || t.startsWith(nt)); });
+    if (hit) return await imgFetch(`https://covers.openlibrary.org/b/id/${hit.cover_i}-L.jpg?default=false`);
+  } catch (e) {}
+  return '';
+}
+async function findCover(m, quiet) {
+  const c = await onlineCover(m);
+  if (c) {
+    const rec = await DB.get('meta', m.id);
+    if (rec) { rec.cover = c; await DB.put('meta', rec); }
+    const e = docs.find(x => x.id === m.id); if (e) e.cover = c;
+    if (R.doc && R.doc.id === m.id) R.doc.cover = c;
+    renderLibrary();
+    if (bookSel === m.id && sheetOpen && sheetOpen.id === 'sh-book') renderBook();
+    if (!quiet) setStatus('Cover found.', null);
+  } else if (!quiet) setStatus('No cover found online. Check your connection, or choose an image with Change cover.', null, true);
+  return !!c;
 }
 
 /* ---------- EPUB ---------- */
@@ -654,7 +710,9 @@ async function parseEpub(file) {
       if (f) cover = await coverFromBlob(new Blob([await f.async('arraybuffer')], { type: ci.type }));
     }
   } catch (e) {}
-  return { title, author, kind: 'EPUB', items, cover };
+  const ids = [...opf.getElementsByTagNameNS('*', 'identifier')].map(e => 'ISBN ' + e.textContent).join(' ');
+  const isbn = isbnFrom(ids + ' ' + items.filter(i => i.type === 'p').slice(0, 80).map(i => i.text).join(' '));
+  return { title, author, kind: 'EPUB', items, cover, isbn };
 }
 
 /* ---------- PDF ---------- */
@@ -760,7 +818,7 @@ async function parsePdf(file) {
   });
   flush();
   if (chars < N * 20) throw new Error('This PDF has almost no text layer. It is probably a scan, which this reader can’t read.');
-  return { title, author, kind: 'PDF', items, cover };
+  return { title, author, kind: 'PDF', items, cover, isbn: isbnFrom(pages.slice(0, 12).flat().join(' ')) };
 }
 
 /* ---------- Sample ---------- */
@@ -903,7 +961,7 @@ function renderBook(confirmDel) {
   $('#bkBody').innerHTML = `<div class="bkhead"><div class="bkcov"><div class="cov">${coverHtml(d)}</div></div><div class="bkinfo"><div class="bkt">${esc(d.title)}</div><div class="muted">${info}</div></div></div>` +
     (confirmDel
       ? `<p>Delete “${esc(d.title)}” from this device?</p><div class="actions"><button class="btn danger" type="button" data-act="del2">Delete</button><button class="btn" type="button" data-act="keep">Keep it</button></div>`
-      : `<div class="bkacts"><button class="btn primary" type="button" data-act="open">${d.pos && !d.finished ? 'Continue reading' : 'Start reading'}</button><button class="btn" type="button" data-act="from">${from}</button><button class="btn" type="button" data-act="cover">Change cover</button><button class="btn" type="button" data-act="finish">${d.finished ? 'Mark as unread' : 'Mark as finished'}</button>${d.pos || d.finished ? '<button class="btn" type="button" data-act="restart">Start over</button>' : ''}<button class="btn danger-text" type="button" data-act="del">Delete</button></div>`);
+      : `<div class="bkacts"><button class="btn primary" type="button" data-act="open">${d.pos && !d.finished ? 'Continue reading' : 'Start reading'}</button><button class="btn" type="button" data-act="from">${from}</button><button class="btn" type="button" data-act="online">Find cover online</button><button class="btn" type="button" data-act="cover">Choose cover image</button><button class="btn" type="button" data-act="finish">${d.finished ? 'Mark as unread' : 'Mark as finished'}</button>${d.pos || d.finished ? '<button class="btn" type="button" data-act="restart">Start over</button>' : ''}<button class="btn danger-text" type="button" data-act="del">Delete</button></div>`);
 }
 $('#bkBody').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
@@ -912,6 +970,7 @@ $('#bkBody').addEventListener('click', async e => {
     case 'open': closeSheet(); openDoc(d.id); break;
     case 'from': closeSheet(); await openDoc(d.id); if (!reader.hidden) openGoto(); break;
     case 'cover': coverTarget = d.id; $('#coverFile').click(); break;
+    case 'online': setStatus('Looking for a cover…', 0); findCover(d, false); break;
     case 'finish':
       d.finished = !d.finished;
       if (!d.finished && d.pos >= d.wordCount - 1) d.pos = 0;
@@ -958,6 +1017,7 @@ async function importFile(f) {
     const d = buildDoc(res);
     await saveDoc(d);
     await refreshLibrary();
+    if (d.meta.kind === 'PDF' || (d.meta.kind === 'EPUB' && !d.meta.cover)) findCover(d.meta, true);
     const ch = d.meta.chapters.length;
     setStatus(`Added “${d.meta.title}” · ${d.meta.wordCount.toLocaleString()} words${ch ? ' · ' + ch + ' chapters' : ''}`, null);
   } catch (err) {
