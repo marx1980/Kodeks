@@ -277,6 +277,17 @@ a.btn{text-decoration:none}
 .azset[open]{display:flex;flex-direction:column;gap:10px}
 #lsSleep button{padding:8px 9px}
 .panel .body>*{flex-shrink:0}
+.brand.hd{display:flex;justify-content:space-between;align-items:flex-end}
+.addbtn{appearance:none;border:0;width:40px;height:40px;border-radius:12px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;cursor:pointer}
+#cont .cont{display:flex;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
+#cont .cov{width:84px;flex:none}
+#cont .ci{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+#cont small{color:var(--muted);font-size:.7rem;letter-spacing:.1em;font-weight:700;text-transform:uppercase}
+#cont .ct{font-family:var(--serif);font-weight:600;font-size:1.15rem;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#cont .ca{color:var(--muted);font-size:.9rem}
+#cont .cbar{height:6px;background:var(--track);border-radius:3px;margin:8px 0;overflow:hidden}
+#cont .cbar i{display:block;height:100%;background:var(--accent)}
+#cont .btn{align-self:flex-start}
 #setBody{display:flex;flex-direction:column;gap:12px}
 #settings .preview{background:var(--surface);border:1px solid var(--line)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
@@ -285,30 +296,17 @@ a.btn{text-decoration:none}
 <body>
 
 
-<main class="lib" id="lib">
-  <header class="brand">
-    <h1 class="spine" data-t="Kodeks"></h1>
-    <p>Import a PDF or EPUB and read it one word at a time, with each word lined up on its focus letter.</p>
-  </header>
-  <div class="actions">
-    <input type="file" id="file" class="vh" multiple accept=".pdf,.epub,application/pdf,application/epub+zip">
-    <label class="btn primary" for="file"><span data-icon="plus"></span>Import PDF or EPUB</label>
-    <button class="btn" id="pasteBtn" type="button">Paste text</button>
-    <button class="btn" id="libSettings" type="button"><span class="num" id="libWpm">300</span>&nbsp;wpm</button>
-  </div>
-  <div id="groups"></div>
-  <p class="foot">Books are stored in this browser, on this device only. Nothing is uploaded, and no account or internet connection is needed. On iPhone, open this page in Safari and choose Share → Add to Home Screen; it then works offline.</p>
-</main>
-
-<main class="lib" id="shelf" hidden>
-  <header class="brand"><h1 class="spine" data-t="Library"></h1><p id="shelfSub"></p></header>
+<main class="lib" id="shelf">
+  <header class="brand hd"><h1 class="spine" data-t="Kodeks"></h1><button class="addbtn" id="addBtn" type="button" aria-label="Add a book"><span data-icon="plus"></span></button></header>
+  <input type="file" id="file" class="vh" multiple accept=".pdf,.epub,application/pdf,application/epub+zip">
+  <section id="cont" hidden></section>
   <input type="search" id="shelfQ" class="search" placeholder="Search title or author" aria-label="Search library" autocomplete="off">
   <div class="seg" id="shelfFilter"><button type="button" data-v="all" aria-pressed="true">All</button><button type="button" data-v="reading" aria-pressed="false">Reading</button><button type="button" data-v="new" aria-pressed="false">New</button><button type="button" data-v="done" aria-pressed="false">Finished</button></div>
   <div class="grid" id="grid"></div>
 </main>
 
 <main class="lib" id="disc" hidden>
-  <header class="brand"><h1 class="spine" data-t="Discover"></h1><p>Public-domain books from Project Gutenberg and pre-1931 books from the Internet Archive. Needs an internet connection.</p></header>
+  <header class="brand"><h1 class="spine" data-t="Discover"></h1></header>
   <div class="seg" id="srcSeg"><button type="button" data-v="gut" aria-pressed="true">Project Gutenberg</button><button type="button" data-v="ia" aria-pressed="false">Internet Archive</button></div>
   <form class="discform" id="discForm" role="search">
     <input type="search" id="discQ" class="search" placeholder="Title, author or subject" aria-label="Search books" enterkeyhint="search" autocomplete="off">
@@ -323,15 +321,15 @@ a.btn{text-decoration:none}
 </main>
 
 <main class="lib" id="settings" hidden>
-  <header class="brand"><h1 class="spine" data-t="Settings"></h1><p>Reading speed, text, theme and the focus letter. Changes apply straight away.</p></header>
+  <header class="brand"><h1 class="spine" data-t="Settings"></h1></header>
   <div id="setHome"></div>
+  <p class="muted" style="font-size:.84rem;margin:0">Your books stay on this device only. No account and nothing is uploaded; once added to the Home Screen, Kodeks works offline.</p>
   <div class="sep"></div>
   <div class="row"><span class="muted" id="verLabel">Kodeks</span><button class="btn sm" type="button" id="updBtn">Check for updates</button></div>
 </main>
 
 <nav class="tabs" id="tabs" aria-label="Sections">
-  <button type="button" data-tab="read" aria-current="page"><span data-icon="book"></span>Read</button>
-  <button type="button" data-tab="shelf"><span data-icon="grid"></span>Library</button>
+  <button type="button" data-tab="shelf" aria-current="page"><span data-icon="grid"></span>Library</button>
   <button type="button" data-tab="disc"><span data-icon="compass"></span>Discover</button>
   <button type="button" data-tab="settings"><span data-icon="sliders"></span>Settings</button>
 </nav>
@@ -445,6 +443,16 @@ a.btn{text-decoration:none}
   </div>
 </div>
 <input type="file" id="coverFile" accept="image/*" class="vh">
+
+<div class="sheet" id="sh-add" hidden>
+  <div class="panel" role="dialog" aria-label="Add a book">
+    <header><h2>Add a book</h2><button class="icon-btn" type="button" data-close aria-label="Close"><span data-icon="x"></span></button></header>
+    <div class="body">
+      <label class="btn primary" for="file"><span data-icon="plus"></span>Import PDF or EPUB</label>
+      <button class="btn" id="pasteBtn" type="button">Paste text</button>
+    </div>
+  </div>
+</div>
 
 <div class="sheet" id="sh-paste" hidden>
   <div class="panel" role="dialog" aria-label="Paste text">
@@ -1068,44 +1076,11 @@ function menuHtml(d) {
     (d.pos || d.finished ? `<button class="btn sm" type="button" data-act="restart">Start over</button>` : '') +
     `<button class="btn sm danger-text" type="button" data-act="del">Delete</button>`;
 }
-function renderLibrary() {
-  renderShelf();
-  const groups = [
-    ['Reading', docs.filter(d => !d.finished && d.pos > 0)],
-    ['Not started', docs.filter(d => !d.finished && !d.pos)],
-    ['Finished', docs.filter(d => d.finished)]
-  ].filter(g => g[1].length);
-  $('#groups').innerHTML = groups.length
-    ? groups.map(([n, l]) => `<section class="group"><h2>${n}</h2><div class="list">${l.map(itemHtml).join('')}</div></section>`).join('')
-    : '<p class="empty">Your library is empty. Import a PDF or EPUB to start.</p>';
-}
-$('#groups').addEventListener('click', async e => {
-  const b = e.target.closest('[data-act]'); if (!b) return;
-  const item = b.closest('.item'); if (!item) return;
-  const id = item.dataset.id, d = docs.find(x => x.id === id), menu = item.querySelector('.menu');
-  if (!d) return;
-  switch (b.dataset.act) {
-    case 'open': openDoc(id); break;
-    case 'from': await openDoc(id); if (!reader.hidden) openGoto(); break;
-    case 'menu': menu.hidden = !menu.hidden; if (!menu.hidden) menu.innerHTML = menuHtml(d); break;
-    case 'finish':
-      d.finished = !d.finished;
-      if (!d.finished && d.pos >= d.wordCount - 1) d.pos = 0;
-      await DB.put('meta', d); renderLibrary(); break;
-    case 'restart': d.pos = 0; d.finished = false; await DB.put('meta', d); renderLibrary(); break;
-    case 'del':
-      menu.innerHTML = `<span class="warn">Delete “${esc(d.title)}” from this device?</span><button class="btn sm danger" type="button" data-act="del2">Delete</button><button class="btn sm" type="button" data-act="cancel">Keep it</button>`;
-      break;
-    case 'del2':
-      await DB.del('meta', id); await DB.del('text', id); DB.delPrefix('audio', id + '|');
-      docs = docs.filter(x => x.id !== id); renderLibrary(); break;
-    case 'cancel': menu.hidden = true; break;
-  }
-});
+function renderLibrary() { renderShelf(); }
 
 /* ---------- Library screen ---------- */
 const F = { q: '', f: 'all' };
-let tab = 'read', bookSel = null, coverTarget = null, coverFind = null, bookEdit = null;
+let tab = 'shelf', bookSel = null, coverTarget = null, coverFind = null, bookEdit = null;
 const hueOf = s => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
 function coverHtml(d) {
   if (d.cover && !/^https?:/.test(d.cover)) return `<img src="${d.cover}" alt="" decoding="async">`;
@@ -1122,7 +1097,12 @@ function renderShelf() {
     if (F.f === 'done' && !d.finished) return false;
     return !q || (d.title + ' ' + (d.author || '')).toLowerCase().includes(q);
   });
-  $('#shelfSub').textContent = docs.length ? `${docs.length} ${docs.length === 1 ? 'book' : 'books'} on this device` : 'Nothing here yet';
+  const cur = (F.f === 'all' && !q) ? (docs.find(d => !d.finished && d.pos > 0) || docs.find(d => !d.finished)) : null;
+  const cEl = $('#cont'); cEl.hidden = !cur;
+  if (cur) {
+    const cp = pctOf(cur);
+    cEl.innerHTML = `<div class="cont" data-id="${esc(cur.id)}"><button class="cov" type="button" data-act="open" aria-label="Open ${esc(cur.title)}">${coverHtml(cur)}</button><div class="ci"><small>${cur.pos > 0 ? 'Continue reading' : 'Up next'}</small><span class="ct">${esc(cur.title)}</span><span class="ca">${esc(realAuthor(cur.author))}</span><span class="cbar"><i style="width:${cp}%"></i></span><button class="btn primary sm" type="button" data-act="open">${cur.pos > 0 ? 'Resume · ' + cp + '%' : 'Start reading'}</button></div></div>`;
+  }
   let h = list.map(d => {
     const p = pctOf(d);
     const st = d.finished ? 'Finished' : p ? p + '% read' : '';
@@ -1134,9 +1114,8 @@ function renderShelf() {
 }
 function syncFilter() { $('#shelfFilter').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === F.f))); }
 function setTab(t) {
-  tab = ['read', 'shelf', 'disc', 'settings'].includes(t) ? t : 'read';
+  tab = ['shelf', 'disc', 'settings'].includes(t) ? t : 'shelf';
   LS.set('tab', tab);
-  $('#lib').hidden = tab !== 'read';
   $('#shelf').hidden = tab !== 'shelf';
   $('#disc').hidden = tab !== 'disc';
   $('#settings').hidden = tab !== 'settings';
@@ -1147,6 +1126,8 @@ function setTab(t) {
   window.scrollTo(0, 0);
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
+$('#cont').addEventListener('click', e => { const b = e.target.closest('[data-act="open"]'), c = e.target.closest('.cont'); if (b && c) openDoc(c.dataset.id); });
+$('#addBtn').addEventListener('click', () => openSheet('add'));
 $('#shelfQ').addEventListener('input', e => { F.q = e.target.value; renderShelf(); });
 $('#shelfFilter').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; F.f = b.dataset.v; syncFilter(); renderShelf(); });
 $('#grid').addEventListener('click', e => {
@@ -1418,6 +1399,7 @@ async function importFile(f, extra) {
 $('#file').addEventListener('change', async e => {
   const files = [...e.target.files];
   e.target.value = '';
+  closeSheet();
   let ok = 0;
   for (const f of files) if (await importFile(f)) ok++;
   if (files.length > 1) setStatus(ok === files.length ? `Added ${ok} books` : `Added ${ok} of ${files.length} books`, null, ok < files.length);
@@ -2097,7 +2079,7 @@ if ('mediaSession' in navigator) {
 }
 
 /* ---------- Sheets ---------- */
-const APP_V = 20;
+const APP_V = 21;
 let sheetOpen = null;
 function openSheet(name) {
   if (R.playing) pause();
@@ -2206,7 +2188,6 @@ function applySettings() {
   stage.classList.toggle('noguide', !S.guide);
   $('#pvStage').classList.toggle('noguide', !S.guide);
   $('#wpmOut').textContent = S.wpm;
-  $('#libWpm').textContent = S.wpm;
   if (R.doc && !reader.hidden) show(R.pos);
   if (!$('#sh-settings').hidden || !$('#settings').hidden) paint($('#pvStage'), $('#pvWord'), S.chunk > 1 ? 'speed reading' : 'comprehension', S.chunk === 1 && S.pivot);
 }
@@ -2225,7 +2206,6 @@ document.querySelectorAll('.seg[data-key]').forEach(seg => seg.addEventListener(
 }));
 function openSettings() { $('#setSheetBody').appendChild($('#setBody')); openSheet('settings'); syncSettingsUI(); applySettings(); }
 $('#rSet').addEventListener('click', openSettings);
-$('#libSettings').addEventListener('click', () => setTab('settings'));
 
 /* ---------- Global ---------- */
 document.addEventListener('keydown', e => {
@@ -2256,7 +2236,7 @@ async function init() {
   syncSettingsUI();
   applySettings();
   syncFilter();
-  setTab(LS.get('tab', 'read'));
+  setTab(LS.get('tab', 'shelf'));
   const existing = await DB.all('meta');
   if (!existing.length && !LS.get('seeded', false)) {
     try { await saveDoc(buildDoc(SAMPLE)); } catch (e) {}
