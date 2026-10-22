@@ -1,5 +1,5 @@
 // Kodeks offline cache. Bump VERSION when any app file changes.
-const VERSION = 'pivot-v18';
+const VERSION = 'pivot-v19';
 const IMG = 'pivot-img'; // cover images from other sites, kept across versions
 const FILES = [
   "./",

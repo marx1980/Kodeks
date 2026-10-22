@@ -2096,6 +2096,7 @@ if ('mediaSession' in navigator) {
 }
 
 /* ---------- Sheets ---------- */
+const APP_V = 19;
 let sheetOpen = null;
 function openSheet(name) {
   if (R.playing) pause();
@@ -2244,7 +2245,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if
 
 async function init() {
   document.querySelectorAll('[data-icon]').forEach(el => { el.outerHTML = I[el.dataset.icon] || ''; });
-  $('#verLabel').textContent = 'Kodeks · version 18';
+  $('#verLabel').textContent = 'Kodeks · version ' + APP_V;
   const SPH = [53, 45, 50, 43, 51, 46, 49, 44];
   document.querySelectorAll('h1.spine').forEach(h => {
     const w = h.dataset.t; h.setAttribute('aria-label', w);
@@ -2272,9 +2273,20 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
   navigator.serviceWorker.register('sw.js').then(reg => {
     $('#updBtn').addEventListener('click', async () => {
-      const b = $('#updBtn'); b.textContent = 'Checking…';
-      try { await reg.update(); } catch (e) {}
-      setTimeout(() => { b.textContent = 'Up to date'; setTimeout(() => { b.textContent = 'Check for updates'; }, 2500); }, 3000);
+      const btn = $('#updBtn'), say = s => { btn.textContent = s; };
+      say('Checking…');
+      let remote = 0;
+      try {
+        const r = await fetch('sw.js?x=' + Date.now(), { cache: 'no-store' });
+        remote = +((/pivot-v(\d+)/.exec(await r.text()) || [])[1] || 0);
+      } catch (e) { say('Can’t reach the server'); setTimeout(() => say('Check for updates'), 3000); return; }
+      if (remote <= APP_V) { say('Up to date (version ' + APP_V + ')'); setTimeout(() => say('Check for updates'), 3000); return; }
+      say('Installing version ' + remote + '…');
+      try {
+        for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+        for (const k of await caches.keys()) if (k !== 'pivot-img') await caches.delete(k);
+      } catch (e) {}
+      location.reload();
     });
   }).catch(() => {});
 }
