@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kodeks">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#F4F5F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0E1117" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F4F1DE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1E2235" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-512.png">
@@ -26,30 +26,41 @@
 
 /* Layout: single-column library; the reader is a full-screen stage with every word's focus letter pinned at 40% of the width */
 :root{
-  --bg:#F4F5F7; --surface:#FFFFFF; --ink:#141821; --muted:#5B6271; --line:#DCE0E7; --track:#E4E7ED;
-  --accent:#C92A5C; --accent-soft:#F8DCE5; --on-accent:#FFFFFF; --danger:#B42318;
+  --bg:#F4F1DE; --surface:#FBF9EE; --ink:#2A2D44; --muted:#5E617A; --line:#DDD8BE; --track:#E6E1C8;
+  --accent:#B84A31; --accent-soft:#F3D5C8; --on-accent:#FFF8EE; --danger:#B42318;
   --ui:"Atkinson Hyperlegible", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --serif:"Literata", Georgia, "Times New Roman", serif;
   --fs:44px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0E1117; --surface:#171B23; --ink:#E8EBF1; --muted:#959CAB; --line:#272D38; --track:#232934;
-    --accent:#FF5E8E; --accent-soft:#3B1B28; --on-accent:#17080E; --danger:#FF7A6B; color-scheme:dark;
+    --bg:#1E2235; --surface:#2B2F47; --ink:#F4F1DE; --muted:#A9ACC2; --line:#3D405B; --track:#353853;
+  --accent:#E07A5F; --accent-soft:#44313A; --on-accent:#1E2235; --danger:#FF8A75; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0E1117; --surface:#171B23; --ink:#E8EBF1; --muted:#959CAB; --line:#272D38; --track:#232934;
-  --accent:#FF5E8E; --accent-soft:#3B1B28; --on-accent:#17080E; --danger:#FF7A6B; color-scheme:dark;
+  --bg:#1E2235; --surface:#2B2F47; --ink:#F4F1DE; --muted:#A9ACC2; --line:#3D405B; --track:#353853;
+  --accent:#E07A5F; --accent-soft:#44313A; --on-accent:#1E2235; --danger:#FF8A75; color-scheme:dark;
 }
-/* In-app theme choice overrides the viewer theme */
+/* In-app theme choice overrides the viewer theme. Kodeks palette = the icon colours. */
 body[data-skin="light"]{
+  --bg:#F4F1DE; --surface:#FBF9EE; --ink:#2A2D44; --muted:#5E617A; --line:#DDD8BE; --track:#E6E1C8;
+  --accent:#B84A31; --accent-soft:#F3D5C8; --on-accent:#FFF8EE; --danger:#B42318; color-scheme:light;
+}
+body[data-skin="dark"]{
+  --bg:#1E2235; --surface:#2B2F47; --ink:#F4F1DE; --muted:#A9ACC2; --line:#3D405B; --track:#353853;
+  --accent:#E07A5F; --accent-soft:#44313A; --on-accent:#1E2235; --danger:#FF8A75; color-scheme:dark;
+}
+/* Classic = the original pink-on-ink palette; follows the phone's light/dark setting */
+body[data-skin="classic"]{
   --bg:#F4F5F7; --surface:#FFFFFF; --ink:#141821; --muted:#5B6271; --line:#DCE0E7; --track:#E4E7ED;
   --accent:#C92A5C; --accent-soft:#F8DCE5; --on-accent:#FFFFFF; --danger:#B42318; color-scheme:light;
 }
-body[data-skin="dark"]{
-  --bg:#0E1117; --surface:#171B23; --ink:#E8EBF1; --muted:#959CAB; --line:#272D38; --track:#232934;
+@media (prefers-color-scheme: dark){
+  body[data-skin="classic"]{
+    --bg:#0E1117; --surface:#171B23; --ink:#E8EBF1; --muted:#959CAB; --line:#272D38; --track:#232934;
   --accent:#FF5E8E; --accent-soft:#3B1B28; --on-accent:#17080E; --danger:#FF7A6B; color-scheme:dark;
+  }
 }
 body[data-skin="warm"]{
   --bg:#EFE4CE; --surface:#F7EEDC; --ink:#2C2216; --muted:#6B5C46; --line:#D8C8A9; --track:#E2D3B6;
@@ -372,7 +383,7 @@ a.btn{text-decoration:none}
         <div class="seg" data-key="font"><button type="button" data-v="sans">Hyperlegible</button><button type="button" data-v="serif">Literata</button></div>
       </div>
       <div class="row"><span>Theme</span>
-        <div class="seg" data-key="skin"><button type="button" data-v="auto">Auto</button><button type="button" data-v="dark">Dark</button><button type="button" data-v="warm">Warm</button><button type="button" data-v="light">Light</button></div>
+        <div class="seg" data-key="skin"><button type="button" data-v="auto">Auto</button><button type="button" data-v="dark">Dark</button><button type="button" data-v="warm">Warm</button><button type="button" data-v="light">Light</button><button type="button" data-v="classic">Classic</button></div>
       </div>
       <div class="sep"></div>
       <label class="row check" for="sPivot"><span>Highlight the focus letter</span><input type="checkbox" id="sPivot"></label>
