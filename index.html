@@ -294,7 +294,7 @@ a.btn{text-decoration:none}
     <input type="file" id="file" class="vh" multiple accept=".pdf,.epub,application/pdf,application/epub+zip">
     <label class="btn primary" for="file"><span data-icon="plus"></span>Import PDF or EPUB</label>
     <button class="btn" id="pasteBtn" type="button">Paste text</button>
-    <button class="btn" id="libSettings" type="button"><span class="num" id="libWpm">350</span>&nbsp;wpm</button>
+    <button class="btn" id="libSettings" type="button"><span class="num" id="libWpm">300</span>&nbsp;wpm</button>
   </div>
   <div id="groups"></div>
   <p class="foot">Books are stored in this browser, on this device only. Nothing is uploaded, and no account or internet connection is needed. On iPhone, open this page in Safari and choose Share → Add to Home Screen; it then works offline.</p>
@@ -496,8 +496,9 @@ const I = {
 };
 
 /* ---------- Settings ---------- */
-const DEF = { wpm: 350, chunk: 1, pause: 2, fs: 44, font: 'sans', pivot: true, guide: true, ramp: true, skin: 'auto', lsRate: 1, voice_en: '', voice_hr: '', azKey: '', azRegion: 'westeurope' };
+const DEF = { wpm: 300, chunk: 1, pause: 2, fs: 44, font: 'sans', pivot: true, guide: true, ramp: true, skin: 'auto', lsRate: 1, voice_en: '', voice_hr: '', azKey: '', azRegion: 'westeurope' };
 const S = Object.assign({}, DEF, LS.get('settings', {}));
+if (!LS.get('mig300', false)) { LS.set('mig300', true); if (S.wpm === 350) S.wpm = 300; } // one-time: old default 350 becomes the new default 300
 const saveSettings = () => LS.set('settings', S);
 
 /* ---------- Storage (IndexedDB, with in-memory fallback) ---------- */
@@ -2096,7 +2097,7 @@ if ('mediaSession' in navigator) {
 }
 
 /* ---------- Sheets ---------- */
-const APP_V = 19;
+const APP_V = 20;
 let sheetOpen = null;
 function openSheet(name) {
   if (R.playing) pause();
