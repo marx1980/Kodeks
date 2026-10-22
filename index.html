@@ -2244,6 +2244,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if
 
 async function init() {
   document.querySelectorAll('[data-icon]').forEach(el => { el.outerHTML = I[el.dataset.icon] || ''; });
+  $('#verLabel').textContent = 'Kodeks · version 18';
   const SPH = [53, 45, 50, 43, 51, 46, 49, 44];
   document.querySelectorAll('h1.spine').forEach(h => {
     const w = h.dataset.t; h.setAttribute('aria-label', w);
