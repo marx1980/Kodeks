@@ -1,4 +1,4 @@
-# Pivot Reader
+# Kodeks
 
 A speed reader for iPhone (and any browser). It imports PDF and EPUB files (or pasted text) and shows them one word at a time, with each word lined up on its focus letter.
 

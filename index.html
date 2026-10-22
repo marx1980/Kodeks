@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Pivot">
+<meta name="apple-mobile-web-app-title" content="Kodeks">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F4F5F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E1117" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-512.png">
-<title>Pivot Reader</title>
+<title>Kodeks</title>
 <style>
 @font-face{font-family:'Atkinson Hyperlegible';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/atkinson-hyperlegible-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 @font-face{font-family:'Atkinson Hyperlegible';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/atkinson-hyperlegible-latin-ext-400-normal.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
@@ -265,7 +265,7 @@ a.btn{text-decoration:none}
 
 <main class="lib" id="lib">
   <header class="brand">
-    <h1>Pi<b>v</b>ot Reader</h1>
+    <h1><b>K</b>odeks</h1>
     <p>Import a PDF or EPUB and read it one word at a time, with each word lined up on its focus letter.</p>
   </header>
   <div class="actions">
@@ -1648,7 +1648,7 @@ const SILENT = (() => {
   let t = ''; b.forEach(x => { t += String.fromCharCode(x); }); return 'data:audio/wav;base64,' + btoa(t);
 })();
 const sleepMs = ms => new Promise(r => setTimeout(r, ms));
-// Ask iOS to treat Pivot's sound as media playback, so Silent mode doesn't mute it
+// Ask iOS to treat Kodeks's sound as media playback, so Silent mode doesn't mute it
 function mediaAudio() { try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) {} }
 const escXml = t => t.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
 
@@ -1971,7 +1971,7 @@ function renderListenSheet() {
   if (cur && cur.engine === 'az') {
     ensureChunks();
     const g = L.gen.running && L.gen.vid === cur.id;
-    h += `<div class="sep"></div><h3 class="lsh">Offline audio <span class="muted">· ${esc(cur.name)}</span></h3><p id="lsSaved">Checking…</p><div class="actions">${g ? '<button class="btn" type="button" data-act="genstop">Stop saving</button>' : '<button class="btn primary" type="button" data-act="genall">Save whole book for offline</button>'}<button class="btn danger-text" type="button" data-act="audiodel">Delete saved audio</button></div><p class="muted">Parts you listen to are saved automatically. Saving the whole book creates every part now, so you can listen offline with the screen locked; keep Pivot open while it runs. This book has about ${bookChars().toLocaleString()} characters. Azure’s free tier covers 500,000 characters a month, then it costs about $16 per million.</p>`;
+    h += `<div class="sep"></div><h3 class="lsh">Offline audio <span class="muted">· ${esc(cur.name)}</span></h3><p id="lsSaved">Checking…</p><div class="actions">${g ? '<button class="btn" type="button" data-act="genstop">Stop saving</button>' : '<button class="btn primary" type="button" data-act="genall">Save whole book for offline</button>'}<button class="btn danger-text" type="button" data-act="audiodel">Delete saved audio</button></div><p class="muted">Parts you listen to are saved automatically. Saving the whole book creates every part now, so you can listen offline with the screen locked; keep Kodeks open while it runs. This book has about ${bookChars().toLocaleString()} characters. Azure’s free tier covers 500,000 characters a month, then it costs about $16 per million.</p>`;
   }
   h += `<div class="sep"></div><details class="azset"${S.azKey && !L.azFail ? '' : ' open'}><summary>Azure voices setup</summary><label class="field" for="azKeyIn">Key<input id="azKeyIn" type="password" autocomplete="off" spellcheck="false" value="${esc(S.azKey)}"></label><label class="field" for="azRegIn">Region<input id="azRegIn" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(S.azRegion)}" placeholder="westeurope"></label><div class="actions"><button class="btn primary" type="button" data-act="azsave">Save and test</button>${S.azKey ? '<button class="btn danger-text" type="button" data-act="azclear">Remove key</button>' : ''}</div><p class="muted">To get a free key: sign in at portal.azure.com, create a “Speech service” resource on the Free (F0) tier in the West Europe region, then copy Key 1 and the region from “Keys and Endpoint”. The key is stored only on this phone.</p></details>`;
   $('#lsBody').innerHTML = h;
