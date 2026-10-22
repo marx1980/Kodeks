@@ -282,7 +282,7 @@ a.btn{text-decoration:none}
     <p>Import a PDF or EPUB and read it one word at a time, with each word lined up on its focus letter.</p>
   </header>
   <div class="actions">
-    <input type="file" id="file" class="vh" multiple>
+    <input type="file" id="file" class="vh" multiple accept=".pdf,.epub,application/pdf,application/epub+zip">
     <label class="btn primary" for="file"><span data-icon="plus"></span>Import PDF or EPUB</label>
     <button class="btn" id="pasteBtn" type="button">Paste text</button>
     <button class="btn" id="libSettings" type="button"><span class="num" id="libWpm">350</span>&nbsp;wpm</button>
@@ -1408,7 +1408,9 @@ async function importFile(f, extra) {
 $('#file').addEventListener('change', async e => {
   const files = [...e.target.files];
   e.target.value = '';
-  for (const f of files) await importFile(f);
+  let ok = 0;
+  for (const f of files) if (await importFile(f)) ok++;
+  if (files.length > 1) setStatus(ok === files.length ? `Added ${ok} books` : `Added ${ok} of ${files.length} books`, null, ok < files.length);
 });
 
 /* ---------- Reader ---------- */
