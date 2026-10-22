@@ -268,6 +268,8 @@ a.btn{text-decoration:none}
 .azset[open]{display:flex;flex-direction:column;gap:10px}
 #lsSleep button{padding:8px 9px}
 .panel .body>*{flex-shrink:0}
+#setBody{display:flex;flex-direction:column;gap:12px}
+#settings .preview{background:var(--surface);border:1px solid var(--line)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -311,10 +313,18 @@ a.btn{text-decoration:none}
   <button class="btn" type="button" id="discMore" hidden>Load more</button>
 </main>
 
+<main class="lib" id="settings" hidden>
+  <header class="brand"><h1>Settings</h1><p>Reading speed, text, theme and the focus letter. Changes apply straight away.</p></header>
+  <div id="setHome"></div>
+  <div class="sep"></div>
+  <div class="row"><span class="muted" id="verLabel">Kodeks</span><button class="btn sm" type="button" id="updBtn">Check for updates</button></div>
+</main>
+
 <nav class="tabs" id="tabs" aria-label="Sections">
   <button type="button" data-tab="read" aria-current="page"><span data-icon="book"></span>Read</button>
   <button type="button" data-tab="shelf"><span data-icon="grid"></span>Library</button>
   <button type="button" data-tab="disc"><span data-icon="compass"></span>Discover</button>
+  <button type="button" data-tab="settings"><span data-icon="sliders"></span>Settings</button>
 </nav>
 
 <div class="status toast" id="status" role="status" hidden>
@@ -365,7 +375,7 @@ a.btn{text-decoration:none}
 <div class="sheet" id="sh-settings" hidden>
   <div class="panel" role="dialog" aria-label="Reading settings">
     <header><h2>Reading settings</h2><button class="icon-btn" type="button" data-close aria-label="Close"><span data-icon="x"></span></button></header>
-    <div class="body">
+    <div class="body" id="setSheetBody"><div id="setBody">
       <div class="stage preview" id="pvStage" aria-hidden="true">
         <div class="hair t"></div><div class="guide t"></div><div class="w" id="pvWord"></div><div class="guide b"></div><div class="hair b"></div>
       </div>
@@ -389,7 +399,7 @@ a.btn{text-decoration:none}
       <label class="row check" for="sPivot"><span>Highlight the focus letter</span><input type="checkbox" id="sPivot"></label>
       <label class="row check" for="sGuide"><span>Show guide marks</span><input type="checkbox" id="sGuide"></label>
       <label class="row check" for="sRamp"><span>Ease into speed after a pause</span><input type="checkbox" id="sRamp"></label>
-    </div>
+    </div></div>
   </div>
 </div>
 
@@ -471,6 +481,7 @@ const I = {
   book: sv('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16"/>', 24),
   headphones: sv('<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.5" height="7" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="7" rx="1.5"/>'),
   play20: sv('<path d="M8 5.6v12.8a1 1 0 0 0 1.53.85l10.1-6.4a1 1 0 0 0 0-1.7L9.53 4.75A1 1 0 0 0 8 5.6z"/>', 18, true),
+  sliders: sv('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>', 24),
   compass: sv('<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>', 24),
   grid: sv('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>', 24)
 };
@@ -1113,11 +1124,13 @@ function renderShelf() {
 }
 function syncFilter() { $('#shelfFilter').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === F.f))); }
 function setTab(t) {
-  tab = ['read', 'shelf', 'disc'].includes(t) ? t : 'read';
+  tab = ['read', 'shelf', 'disc', 'settings'].includes(t) ? t : 'read';
   LS.set('tab', tab);
   $('#lib').hidden = tab !== 'read';
   $('#shelf').hidden = tab !== 'shelf';
   $('#disc').hidden = tab !== 'disc';
+  $('#settings').hidden = tab !== 'settings';
+  if (tab === 'settings') { $('#setHome').appendChild($('#setBody')); syncSettingsUI(); applySettings(); }
   $('#tabs').querySelectorAll('button').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   if (tab === 'shelf') renderShelf();
   if (tab === 'disc' && !D.loaded) discSearch(false);
@@ -2182,7 +2195,7 @@ function applySettings() {
   $('#wpmOut').textContent = S.wpm;
   $('#libWpm').textContent = S.wpm;
   if (R.doc && !reader.hidden) show(R.pos);
-  if (!$('#sh-settings').hidden) paint($('#pvStage'), $('#pvWord'), S.chunk > 1 ? 'speed reading' : 'comprehension', S.chunk === 1 && S.pivot);
+  if (!$('#sh-settings').hidden || !$('#settings').hidden) paint($('#pvStage'), $('#pvWord'), S.chunk > 1 ? 'speed reading' : 'comprehension', S.chunk === 1 && S.pivot);
 }
 function commit() { saveSettings(); syncSettingsUI(); applySettings(); renderLibrary(); }
 sWpm.addEventListener('input', () => { S.wpm = +sWpm.value; commit(); });
@@ -2197,9 +2210,9 @@ document.querySelectorAll('.seg[data-key]').forEach(seg => seg.addEventListener(
   S[k] = k === 'chunk' ? +b.dataset.v : b.dataset.v;
   commit();
 }));
-function openSettings() { openSheet('settings'); syncSettingsUI(); applySettings(); }
+function openSettings() { $('#setSheetBody').appendChild($('#setBody')); openSheet('settings'); syncSettingsUI(); applySettings(); }
 $('#rSet').addEventListener('click', openSettings);
-$('#libSettings').addEventListener('click', openSettings);
+$('#libSettings').addEventListener('click', () => setTab('settings'));
 
 /* ---------- Global ---------- */
 document.addEventListener('keydown', e => {
@@ -2233,7 +2246,21 @@ async function init() {
   await refreshLibrary();
 }
 init();
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  const hadSW = !!navigator.serviceWorker.controller; let swDone = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // A new version took over: reload once it is safe (not reading or listening)
+    if (!hadSW || swDone) return; swDone = true;
+    if (reader.hidden && !L.playing) location.reload(); else setStatus('Update ready. It applies next time you open the app.');
+  });
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    $('#updBtn').addEventListener('click', async () => {
+      const b = $('#updBtn'); b.textContent = 'Checking…';
+      try { await reg.update(); } catch (e) {}
+      setTimeout(() => { b.textContent = 'Up to date'; setTimeout(() => { b.textContent = 'Check for updates'; }, 2500); }, 3000);
+    });
+  }).catch(() => {});
+}
 })();
 </script>
 </body>
