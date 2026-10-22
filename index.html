@@ -79,6 +79,15 @@ button{font:inherit;color:inherit}
 .lib{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 48px;display:flex;flex-direction:column;gap:26px}
 .brand h1{font-family:var(--serif);font-style:italic;font-weight:500;font-size:2.25rem;line-height:1.05;margin:0;letter-spacing:-.015em}
 .brand h1 b{color:var(--accent);font-style:normal;font-weight:600}
+/* Book-spine titles: each letter on its own spine, standing on a shelf */
+.brand h1.spine{display:flex;flex-direction:column;width:fit-content;font-style:normal;font-weight:700;letter-spacing:0;line-height:1}
+.brand h1.spine .sp{display:flex;align-items:flex-end;gap:3px}
+.brand h1.spine .sp i{display:flex;align-items:center;justify-content:center;width:34px;border-radius:4px;font-style:normal;font-size:1.5rem}
+.brand h1.spine::after{content:"";height:4px;border-radius:2px;background:var(--ink);opacity:.85;margin-top:0}
+.brand h1.spine .sp i:nth-child(4n+1){background:#3D405B;color:#F4F1DE}
+.brand h1.spine .sp i:nth-child(4n+2){background:#E07A5F;color:#fff}
+.brand h1.spine .sp i:nth-child(4n+3){background:#81B29A;color:#1F2A24}
+.brand h1.spine .sp i:nth-child(4n){background:#F2CC8F;color:#3D405B}
 .brand p{margin:8px 0 0;color:var(--muted);max-width:44ch}
 .actions{display:flex;gap:10px;flex-wrap:wrap}
 .btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;padding:11px 16px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;min-height:46px;line-height:1.2}
@@ -278,7 +287,7 @@ a.btn{text-decoration:none}
 
 <main class="lib" id="lib">
   <header class="brand">
-    <h1><b>K</b>odeks</h1>
+    <h1 class="spine" data-t="Kodeks"></h1>
     <p>Import a PDF or EPUB and read it one word at a time, with each word lined up on its focus letter.</p>
   </header>
   <div class="actions">
@@ -292,14 +301,14 @@ a.btn{text-decoration:none}
 </main>
 
 <main class="lib" id="shelf" hidden>
-  <header class="brand"><h1>Library</h1><p id="shelfSub"></p></header>
+  <header class="brand"><h1 class="spine" data-t="Library"></h1><p id="shelfSub"></p></header>
   <input type="search" id="shelfQ" class="search" placeholder="Search title or author" aria-label="Search library" autocomplete="off">
   <div class="seg" id="shelfFilter"><button type="button" data-v="all" aria-pressed="true">All</button><button type="button" data-v="reading" aria-pressed="false">Reading</button><button type="button" data-v="new" aria-pressed="false">New</button><button type="button" data-v="done" aria-pressed="false">Finished</button></div>
   <div class="grid" id="grid"></div>
 </main>
 
 <main class="lib" id="disc" hidden>
-  <header class="brand"><h1>Discover</h1><p>Public-domain books from Project Gutenberg and pre-1931 books from the Internet Archive. Needs an internet connection.</p></header>
+  <header class="brand"><h1 class="spine" data-t="Discover"></h1><p>Public-domain books from Project Gutenberg and pre-1931 books from the Internet Archive. Needs an internet connection.</p></header>
   <div class="seg" id="srcSeg"><button type="button" data-v="gut" aria-pressed="true">Project Gutenberg</button><button type="button" data-v="ia" aria-pressed="false">Internet Archive</button></div>
   <form class="discform" id="discForm" role="search">
     <input type="search" id="discQ" class="search" placeholder="Title, author or subject" aria-label="Search books" enterkeyhint="search" autocomplete="off">
@@ -314,7 +323,7 @@ a.btn{text-decoration:none}
 </main>
 
 <main class="lib" id="settings" hidden>
-  <header class="brand"><h1>Settings</h1><p>Reading speed, text, theme and the focus letter. Changes apply straight away.</p></header>
+  <header class="brand"><h1 class="spine" data-t="Settings"></h1><p>Reading speed, text, theme and the focus letter. Changes apply straight away.</p></header>
   <div id="setHome"></div>
   <div class="sep"></div>
   <div class="row"><span class="muted" id="verLabel">Kodeks</span><button class="btn sm" type="button" id="updBtn">Check for updates</button></div>
@@ -2235,6 +2244,11 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if
 
 async function init() {
   document.querySelectorAll('[data-icon]').forEach(el => { el.outerHTML = I[el.dataset.icon] || ''; });
+  const SPH = [53, 45, 50, 43, 51, 46, 49, 44];
+  document.querySelectorAll('h1.spine').forEach(h => {
+    const w = h.dataset.t; h.setAttribute('aria-label', w);
+    h.innerHTML = '<span class="sp" aria-hidden="true">' + [...w].map((c, i) => `<i style="height:${SPH[i % 8] + (i === 0 ? 8 : 0)}px">${c}</i>`).join('') + '</span>';
+  });
   setPlayIcon();
   syncSettingsUI();
   applySettings();
