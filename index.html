@@ -81,9 +81,9 @@ button{font:inherit;color:inherit}
 .brand h1 b{color:var(--accent);font-style:normal;font-weight:600}
 /* Book-spine titles: each letter on its own spine, standing on a shelf */
 .brand h1.spine{display:flex;flex-direction:column;width:fit-content;font-style:normal;font-weight:700;letter-spacing:0;line-height:1}
-.brand h1.spine .sp{display:flex;align-items:flex-end;gap:2.5px}
-.brand h1.spine .sp i{display:flex;align-items:center;justify-content:center;width:29px;border-radius:3.5px;font-style:normal;font-size:1.275rem}
-.brand h1.spine::after{content:"";height:3.4px;border-radius:2px;background:var(--ink);opacity:.85;margin-top:0}
+.brand h1.spine .sp{display:flex;align-items:flex-end;gap:2px}
+.brand h1.spine .sp i{display:flex;align-items:center;justify-content:center;width:23px;border-radius:3px;font-style:normal;font-size:1.02rem}
+.brand h1.spine::after{content:"";height:2.7px;border-radius:2px;background:var(--ink);opacity:.85;margin-top:0}
 .brand h1.spine .sp i:nth-child(4n+1){background:#3D405B;color:#F4F1DE}
 .brand h1.spine .sp i:nth-child(4n+2){background:#E07A5F;color:#fff}
 .brand h1.spine .sp i:nth-child(4n+3){background:#81B29A;color:#1F2A24}
@@ -2247,7 +2247,7 @@ async function init() {
   const SPH = [53, 45, 50, 43, 51, 46, 49, 44];
   document.querySelectorAll('h1.spine').forEach(h => {
     const w = h.dataset.t; h.setAttribute('aria-label', w);
-    h.innerHTML = '<span class="sp" aria-hidden="true">' + [...w].map((c, i) => `<i style="height:${Math.round((SPH[i % 8] + (i === 0 ? 8 : 0)) * 0.85)}px">${c}</i>`).join('') + '</span>';
+    h.innerHTML = '<span class="sp" aria-hidden="true">' + [...w].map((c, i) => `<i style="height:${Math.round((SPH[i % 8] + (i === 0 ? 8 : 0)) * 0.68)}px">${c}</i>`).join('') + '</span>';
   });
   setPlayIcon();
   syncSettingsUI();
