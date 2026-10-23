@@ -298,7 +298,7 @@ a.btn{text-decoration:none}
 
 <main class="lib" id="shelf">
   <header class="brand hd"><h1 class="spine" data-t="Kodeks"></h1><button class="addbtn" id="addBtn" type="button" aria-label="Add a book"><span data-icon="plus"></span></button></header>
-  <input type="file" id="file" class="vh" multiple accept=".pdf,.epub,application/pdf,application/epub+zip">
+  <input type="file" id="file" class="vh" multiple accept=".pdf,.epub,.azw3,.azw,.mobi,.kf8,application/pdf,application/epub+zip,application/x-mobipocket-ebook">
   <section id="cont" hidden></section>
   <input type="search" id="shelfQ" class="search" placeholder="Search title or author" aria-label="Search library" autocomplete="off">
   <div class="seg" id="shelfFilter"><button type="button" data-v="all" aria-pressed="true">All</button><button type="button" data-v="reading" aria-pressed="false">Reading</button><button type="button" data-v="new" aria-pressed="false">New</button><button type="button" data-v="done" aria-pressed="false">Finished</button></div>
@@ -448,7 +448,7 @@ a.btn{text-decoration:none}
   <div class="panel" role="dialog" aria-label="Add a book">
     <header><h2>Add a book</h2><button class="icon-btn" type="button" data-close aria-label="Close"><span data-icon="x"></span></button></header>
     <div class="body">
-      <label class="btn primary" for="file"><span data-icon="plus"></span>Import PDF or EPUB</label>
+      <label class="btn primary" for="file"><span data-icon="plus"></span>Import a book</label>
       <button class="btn" id="pasteBtn" type="button">Paste text</button>
     </div>
   </div>
@@ -922,6 +922,127 @@ async function parseEpub(file) {
   return { title, author, kind: 'EPUB', items, cover, isbn };
 }
 
+/* ---------- Kindle (AZW3 / KF8, MOBI) ---------- */
+const MOBI_EXT = /\.(azw3?|mobi|kf8|prc)$/i;
+function palmDecompress(src) {
+  const out = new Uint8Array(Math.max(8192, src.length * 8)); let o = 0, i = 0;
+  while (i < src.length) {
+    const c = src[i++];
+    if (c === 0 || (c >= 9 && c <= 0x7f)) out[o++] = c;
+    else if (c >= 1 && c <= 8) { for (let k = 0; k < c && i < src.length; k++) out[o++] = src[i++]; }
+    else if (c >= 0xc0) { out[o++] = 32; out[o++] = c ^ 0x80; }
+    else {
+      const c2 = src[i++], d = (((c << 8) | c2) & 0x3fff) >> 3, n = (c2 & 7) + 3;
+      for (let k = 0; k < n; k++) { out[o] = out[o - d]; o++; }
+    }
+  }
+  return out.subarray(0, o);
+}
+function mobiTrailing(r, flags) {
+  let size = r.length, num = 0;
+  const entry = end => {
+    let bit = 0, res = 0;
+    while (end > 0) { const v = r[end - 1]; res |= (v & 0x7f) << bit; bit += 7; end--; if ((v & 0x80) || bit >= 28) break; }
+    return res;
+  };
+  let f = flags >> 1;
+  while (f) { if (f & 1) num += entry(size - num); f >>= 1; }
+  if (flags & 1) num += (r[size - num - 1] & 3) + 1;
+  return num;
+}
+async function parseMobi(file) {
+  const buf = new Uint8Array(await file.arrayBuffer()), dv = new DataView(buf.buffer);
+  if (buf.length < 100) throw new Error('This file is too small to be a Kindle book.');
+  const nrec = dv.getUint16(76), off = [];
+  for (let i = 0; i < nrec; i++) off.push(dv.getUint32(78 + i * 8));
+  off.push(buf.length);
+  const rec = i => buf.subarray(off[i], off[i + 1]);
+  const tag = (r, p, s) => String.fromCharCode(...r.subarray(p, p + s.length)) === s;
+  const isHdr = i => i >= 0 && i < nrec && rec(i).length > 100 && tag(rec(i), 16, 'MOBI');
+  if (!isHdr(0)) throw new Error('This doesn’t look like a Kindle book (AZW3, MOBI).');
+  const exth = r => {
+    const m = {}, hl = new DataView(r.buffer, r.byteOffset, r.length).getUint32(20), p = 16 + hl;
+    if (!(new DataView(r.buffer, r.byteOffset, r.length).getUint32(128) & 0x40) || !tag(r, p, 'EXTH')) return m;
+    const v = new DataView(r.buffer, r.byteOffset, r.length), n = v.getUint32(p + 8); let q = p + 12;
+    for (let k = 0; k < n && q + 8 <= r.length; k++) {
+      const t = v.getUint32(q), l = v.getUint32(q + 4); if (l < 8) break;
+      (m[t] = m[t] || []).push(r.subarray(q + 8, q + l)); q += l;
+    }
+    return m;
+  };
+  const r0 = rec(0), x0 = exth(r0), u32 = a => a && a.length >= 4 ? new DataView(a.buffer, a.byteOffset, a.length).getUint32(0) : -1;
+  // A combined KF7+KF8 file holds a second header further on; prefer that one.
+  let hi = 0;
+  const b = u32(x0[121] && x0[121][0]);
+  for (const c of [b, b + 1]) if (c > 0 && isHdr(c) && new DataView(rec(c).buffer, rec(c).byteOffset).getUint32(36) === 8) { hi = c; break; }
+  if (!hi) for (let i = 1; i < nrec; i++) if (tag(rec(i), 0, 'BOUNDARY') && isHdr(i + 1)) { hi = i + 1; break; }
+  const h = rec(hi), hv = new DataView(h.buffer, h.byteOffset, h.length);
+  const comp = hv.getUint16(0), count = hv.getUint16(8), encr = hv.getUint16(12), enc = hv.getUint32(28), hlen = hv.getUint32(20);
+  if (encr) throw new Error(`“${file.name}” is protected by Kindle DRM, so it can’t be read here. Only DRM-free files work.`);
+  if (comp !== 1 && comp !== 2) throw new Error('This Kindle file uses a compression that isn’t supported yet.');
+  const flags = hlen >= 0xe4 && h.length > 0xf4 ? hv.getUint16(0xf2) : 0;
+  const parts = []; let total = 0;
+  for (let i = 1; i <= count && hi + i < nrec; i++) {
+    let r = rec(hi + i);
+    if (flags) r = r.subarray(0, r.length - mobiTrailing(r, flags));
+    r = comp === 2 ? palmDecompress(r) : r;
+    parts.push(r); total += r.length;
+  }
+  let raw = new Uint8Array(total); { let p = 0; for (const r of parts) { raw.set(r, p); p += r.length; } }
+  // KF8: the main text ends where the first flow ends; later flows are CSS and SVG.
+  if (hi || hv.getUint32(36) === 8) for (let i = hi + count + 1; i < nrec; i++) {
+    const r = rec(i);
+    if (r.length >= 16 && tag(r, 0, 'FDST')) { const v = new DataView(r.buffer, r.byteOffset, r.length), n = v.getUint32(8), end = n ? v.getUint32(16) : 0; if (end > 0 && end <= raw.length) raw = raw.subarray(0, end); break; }
+  }
+  const html = new TextDecoder(enc === 65001 ? 'utf-8' : 'windows-1252').decode(raw);
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const items = [];
+  const walk = n => {
+    // Headings become chapters; everything else is read like an EPUB page.
+    const paras = []; let buf = '';
+    const flush = () => { const t = buf.replace(/\s+/g, ' ').trim(); if (t) items.push({ type: 'p', text: t }); buf = ''; };
+    (function w(el) {
+      for (let c = el.firstChild; c; c = c.nextSibling) {
+        if (c.nodeType === 3) { buf += c.nodeValue; continue; }
+        if (c.nodeType !== 1) continue;
+        const tg = (c.localName || '').toLowerCase();
+        if (SKIP.has(tg)) continue;
+        if (tg === 'br') { buf += ' '; continue; }
+        if (/^h[1-3]$/.test(tg)) { flush(); const t = cleanText(c.textContent); if (t) items.push({ type: 'ch', title: t }); continue; }
+        if (tg.endsWith('pagebreak')) { flush(); w(c); continue; }
+        if (tg === 'sup' && /^\s*[\d*†‡§]+\s*$/.test(c.textContent)) continue;
+        const bl = BLOCK.has(tg);
+        if (bl) flush();
+        w(c);
+        if (bl) flush();
+      }
+    })(n);
+    flush();
+  };
+  walk(doc.body || doc.documentElement);
+  const txt = a => (a && a[0]) ? new TextDecoder(enc === 65001 ? 'utf-8' : 'windows-1252').decode(a[0]) : '';
+  const xs = exth(h);
+  const get = k => txt(xs[k] || x0[k]);
+  let title = get(503);
+  if (!title) { const fo = hv.getUint32(84), fl = hv.getUint32(88); title = new TextDecoder(enc === 65001 ? 'utf-8' : 'windows-1252').decode(h.subarray(fo, fo + fl)); }
+  if (!title || /^(unknown|untitled)$/i.test(title.trim())) title = file.name.replace(/\.[^.]+$/, '');
+  const author = (xs[100] || x0[100] || []).map(a => new TextDecoder('utf-8').decode(a)).join(', ');
+  // Cover: the image record named by the cover offset, counted from the outer header's first image record.
+  let cover = '';
+  try {
+    const fi = new DataView(r0.buffer, r0.byteOffset, r0.length).getUint32(108);
+    const co = u32((xs[201] || x0[201] || [])[0]), tn = u32((xs[202] || x0[202] || [])[0]);
+    for (const k of [co, tn]) {
+      if (k < 0 || fi + k >= nrec) continue;
+      const r = rec(fi + k);
+      const type = r[0] === 0xff && r[1] === 0xd8 ? 'image/jpeg' : r[0] === 0x89 && r[1] === 0x50 ? 'image/png' : tag(r, 0, 'GIF8') ? 'image/gif' : '';
+      if (type) { cover = await coverFromBlob(new Blob([r], { type })); break; }
+    }
+  } catch (e) { cover = ''; }
+  const isbn = isbnFrom(get(104) + ' ' + items.filter(i => i.type === 'p').slice(0, 80).map(i => i.text).join(' '));
+  return { title, author, kind: 'Kindle', items, cover, isbn };
+}
+
 /* ---------- PDF ---------- */
 async function parsePdf(file) {
   await loadScript(PDFJS);
@@ -1380,13 +1501,14 @@ async function importFile(f, extra) {
     let res;
     if (low.endsWith('.epub') || f.type === 'application/epub+zip') res = await parseEpub(f);
     else if (low.endsWith('.pdf') || f.type === 'application/pdf') res = await parsePdf(f);
+    else if (MOBI_EXT.test(low)) res = await parseMobi(f);
     else if (low.endsWith('.txt') || low.endsWith('.md') || (f.type || '').startsWith('text/')) res = { title: name.replace(/\.[^.]+$/, ''), author: '', kind: 'Text', items: toParas(await f.text()) };
-    else throw new Error(`“${name}” isn’t a PDF, EPUB or text file.`);
+    else throw new Error(`“${name}” isn’t a PDF, EPUB, Kindle or text file.`);
     const d = buildDoc(res);
     if (extra) for (const k in extra) if (extra[k]) d.meta[k] = extra[k];
     await saveDoc(d);
     await refreshLibrary();
-    if (d.meta.kind === 'PDF' || (d.meta.kind === 'EPUB' && !d.meta.cover)) findCover(d.meta, true);
+    if (d.meta.kind === 'PDF' || ((d.meta.kind === 'EPUB' || d.meta.kind === 'Kindle') && !d.meta.cover)) findCover(d.meta, true);
     const ch = d.meta.chapters.length;
     setStatus(`Added “${d.meta.title}” · ${d.meta.wordCount.toLocaleString()} words${ch ? ' · ' + ch + ' chapters' : ''}`, null);
     return d.meta.id;
@@ -2079,7 +2201,7 @@ if ('mediaSession' in navigator) {
 }
 
 /* ---------- Sheets ---------- */
-const APP_V = 21;
+const APP_V = 22;
 let sheetOpen = null;
 function openSheet(name) {
   if (R.playing) pause();
